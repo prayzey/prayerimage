@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prayer Image Generator</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold text-center mb-8">Prayer Image Generator</h1>
+        
+        <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-6">
+            <div class="mb-4">
+                <p class="text-gray-600 mb-2">Enter your prayers or announcements below.</p>
+                <textarea id="prayerText" class="w-full h-48 p-2 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter your prayer text here..."></textarea>
+            </div>
+            
+            <button onclick="generateImage()" class="w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors">
+                Generate Image
+            </button>
+            
+            <div id="result" class="mt-6 hidden">
+                <h2 class="text-xl font-semibold mb-4">Generated Image:</h2>
+                <div class="border rounded-lg p-4">
+                    <img id="generatedImage" class="w-full h-auto" src="" alt="Generated Prayer Image">
+                </div>
+                <a id="downloadLink" href="#" download class="block mt-4 text-center bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600 transition-colors">
+                    Download Image
+                </a>
+            </div>
+            
+            <div id="loading" class="hidden mt-4 text-center">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                <p class="mt-2 text-gray-600">Generating image...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function generateImage() {
+            const text = document.getElementById('prayerText').value;
+            if (!text) {
+                alert('Please enter some text first');
+                return;
+            }
+
+            // Show loading state
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('result').classList.add('hidden');
+
+            try {
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `text=${encodeURIComponent(text)}`
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Update image and download link
+                    const imageUrl = data.image_url;
+                    document.getElementById('generatedImage').src = imageUrl;
+                    document.getElementById('downloadLink').href = imageUrl;
+                    
+                    // Show result
+                    document.getElementById('result').classList.remove('hidden');
+                } else {
+                    alert(data.error || 'Failed to generate image');
+                }
+            } catch (error) {
+                alert('An error occurred while generating the image');
+                console.error(error);
+            } finally {
+                document.getElementById('loading').classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
