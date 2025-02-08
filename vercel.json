@@ -25,7 +25,7 @@
         },
         {
             "src": "/",
-            "dest": "/static/index.html"
+            "dest": "/api/index.py"
         },
         {
             "src": "/(.*)",
