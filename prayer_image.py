@@ -1,5 +1,3 @@
-import tkinter as tk
-from tkinter import ttk, scrolledtext
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import textwrap
@@ -432,66 +430,6 @@ def create_prayer_image(text, date_text="", output_filename="prayer.png", width=
     
     return generated_files
 
-class PrayerImageApp:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Prayer Image Generator")
-        
-        self.root.geometry("800x600")
-        self.root.configure(padx=20, pady=20)
-        
-        main_frame = ttk.Frame(root)
-        main_frame.pack(fill=tk.BOTH, expand=True)
-        
-        instructions = (
-            "Enter your prayers or announcements below.\n"
-            "Separate each new item with a line break."
-        )
-        ttk.Label(main_frame, text=instructions).pack(pady=(0, 5))
-        
-        self.text_input = scrolledtext.ScrolledText(main_frame, height=15, width=70, wrap=tk.WORD)
-        self.text_input.pack(pady=(0, 20), fill=tk.BOTH, expand=True)
-        
-        generate_btn = ttk.Button(main_frame, text="Generate Images", command=self.generate_images)
-        generate_btn.pack(pady=(0, 10))
-        
-        self.status_label = ttk.Label(main_frame, text="")
-        self.status_label.pack()
-        
-        if not os.path.exists("generated_prayers"):
-            os.makedirs("generated_prayers")
-    
-    def generate_images(self):
-        text = self.text_input.get("1.0", tk.END).strip()
-        if not text:
-            self.status_label.config(text="Please enter some text first!")
-            return
-        
-        prayers = [prayer.strip() for prayer in text.split('\n') if prayer.strip()]
-        
-        try:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            successful_images = 0
-            
-            for i, prayer in enumerate(prayers, 1):
-                output_filename = os.path.join(
-                    "generated_prayers", 
-                    f"prayer_{timestamp}_{i}.png"
-                )
-                create_prayer_image(prayer, output_filename=output_filename)
-                successful_images += 1
-            
-            self.status_label.config(
-                text=f"Created {successful_images} images in 'generated_prayers'!"
-            )
-            os.system(f"open {os.path.abspath('generated_prayers')}")
-        except Exception as e:
-            self.status_label.config(text=f"Error: {str(e)}")
-
-def main():
-    root = tk.Tk()
-    app = PrayerImageApp(root)
-    root.mainloop()
-
-if __name__ == "__main__":
-    main()
+# Ensure the output directory exists
+if not os.path.exists("static/generated"):
+    os.makedirs("static/generated", exist_ok=True)
