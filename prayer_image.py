@@ -21,16 +21,15 @@ def measure_text_height(text, font, max_width, draw, line_spacing_factor=0.1):
         ascent, descent = font.getmetrics()
         line_height = ascent + descent
         print(f"Font metrics - size: {font.size}, ascent: {ascent}, descent: {descent}, line height: {line_height}")
-        # Validate metrics
-        if ascent < font.size * 0.5 or descent < font.size * 0.1:
-            print("Invalid font metrics detected, using font size based calculation")
-            line_height = int(font.size * 1.2)
+        # Match Vercel's default font metrics ratio
+        if isinstance(font, ImageFont.ImageFont):  # If using default font
+            line_height = 13 * (font.size / 10)  # Scale based on Vercel's ratio
     except Exception as e:
-        print(f"Error getting font metrics: {e}, using font size as fallback")
-        line_height = int(font.size * 1.2)
+        print(f"Error getting font metrics: {e}, using Vercel default metrics")
+        line_height = 13 * (font.size / 10)
 
-    # Add extra padding to max_width to encourage wider text
-    effective_max_width = max_width * 1.2  # Use 120% of max width to force wider text
+    # Use more horizontal space
+    effective_max_width = max_width * 0.98  # Use 98% of available width
     
     lines = []
     current_line = []
@@ -108,43 +107,35 @@ def measure_text_height(text, font, max_width, draw, line_spacing_factor=0.1):
     if current_line:
         lines.append(" ".join(current_line))
 
-    # Calculate total height with extra padding
-    total_height = line_height * len(lines) * (1 + line_spacing_factor)
-    total_height *= 1.3  # Add 30% extra height for safety
+    # Use Vercel's exact metrics for height
+    total_height = 280 * len(lines)  # Use Vercel's line height (280)
     return total_height, lines
 
-def get_font_size_that_fits(text, max_width, max_height, font_path=None, max_size=400, min_size=100):
-    # Try different font paths with absolute paths for Vercel
+def get_font_size_that_fits(text, max_width, max_height, font_path=None, max_size=300, min_size=150):
+    # Match Vercel's font loading behavior
     import os
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    font_paths = [
-        os.path.join(current_dir, 'fonts', 'ArialBold.ttf'),
-        os.path.join(current_dir, '..', 'fonts', 'ArialBold.ttf'),
-        '/var/task/fonts/ArialBold.ttf',
-        '/var/task/api/fonts/ArialBold.ttf',
-        'Arial Bold',
-        'Arial'
-    ]
-    
-    # Try each font path
     font = None
-    for path in font_paths:
-        try:
-            if os.path.isfile(path):
-                print(f"Trying to load font from: {path}")
-                font = ImageFont.truetype(path, size=min_size)
-                break
-            elif not path.endswith('.ttf'):
-                print(f"Trying to load system font: {path}")
-                font = ImageFont.truetype(path, size=min_size)
-                break
-        except Exception as e:
-            print(f"Failed to load font {path}: {e}")
-            continue
     
+    # First try loading Arial Bold from system
+    try:
+        font = ImageFont.truetype('Arial Bold', size=min_size)
+        print("Loaded Arial Bold from system")
+    except Exception as e:
+        print(f"Could not load Arial Bold: {e}")
+    
+    # If system font fails, try default font
     if font is None:
-        print("No fonts could be loaded, using default font")
+        print("Using default font as fallback")
         font = ImageFont.load_default()
+        # Scale default font to match Vercel's metrics
+        if isinstance(font, ImageFont.ImageFont):
+            # Default font size is 10, scale up to match Vercel
+            font = ImageFont.truetype('Arial Bold', size=250)
+            ascent, descent = font.getmetrics()
+            if ascent != 227 or descent != 53:
+                # If metrics don't match Vercel, adjust font size
+                scale = 227 / ascent
+                font = ImageFont.truetype('Arial Bold', size=int(250 * scale))
     temp_img = Image.new('RGB', (1, 1))
     draw = ImageDraw.Draw(temp_img)
 
@@ -323,7 +314,7 @@ def add_logo(img, logo_path, target_width=100):  # Reduced from 150px to 100px f
         return img
 
 def create_prayer_image(text, date_text="", output_filename="prayer.png", width=1920, height=1080):
-    # Force standard dimensions to ensure consistency
+    # Use dimensions that work well for our environment
     width = 1920
     height = 1080
     # Force width and height to be integers
@@ -391,10 +382,9 @@ def create_prayer_image(text, date_text="", output_filename="prayer.png", width=
     text_parts = split_long_text(text)
     generated_files = []
     
-    # Pre-calculate the smallest font size needed for all parts
-    # Use more screen space with minimal margins
-    margin_x = width * 0.05  # 5% horizontal margin
-    margin_y = height * 0.15  # 15% vertical margin for safety
+    # Use margins that work well for our layout
+    margin_x = width * 0.08  # 8% horizontal margin for wider text
+    margin_y = height * 0.12  # 12% vertical margin for better spacing
     max_width_area = width - 2 * margin_x
     max_height_area = height - 2 * margin_y
     
