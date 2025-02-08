@@ -15,7 +15,7 @@ def create_gradient_background(width, height):
     gradient_img = Image.fromarray(np.uint8(rgb_array))
     return gradient_img
 
-def measure_text_height(text, font, max_width, draw, line_spacing_factor=0.1):
+def measure_text_height(text, font, max_width, draw, line_spacing_factor=0.2):
     lines = []
     current_line = []
     words = text.split()
@@ -39,8 +39,11 @@ def measure_text_height(text, font, max_width, draw, line_spacing_factor=0.1):
             return parts
         else:
             # For other long words, split at reasonable length
-            max_chunk = 15  # Maximum characters per chunk
-            return [word[i:i+max_chunk] for i in range(0, len(word), max_chunk)]
+            max_chunk = 20  # Increased maximum characters per chunk
+            # Only split if word is longer than max_chunk
+            if len(word) > max_chunk:
+                return [word[i:i+max_chunk] for i in range(0, len(word), max_chunk)]
+            return [word]
 
     # Build lines word by word
     for word in words:
@@ -87,7 +90,15 @@ def measure_text_height(text, font, max_width, draw, line_spacing_factor=0.1):
         bbox = draw.textbbox((0, 0), line, font=font)
         line_heights.append(bbox[3] - bbox[1])
 
-    # Add a bit of spacing between lines
+    # Calculate line spacing based on text length
+    word_count = len(text.split())
+    if word_count > 30:
+        line_spacing_factor = 0.15  # Tighter spacing for long text
+    elif word_count > 15:
+        line_spacing_factor = 0.2   # Medium spacing
+    else:
+        line_spacing_factor = 0.3   # More spacing for short text
+    
     line_spacing = int(font.size * line_spacing_factor)
     total_height = sum(line_heights) + line_spacing * (len(lines) - 1)
     return total_height, lines
