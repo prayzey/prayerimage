@@ -1,11 +1,33 @@
 #!/bin/bash
 
-# Install system dependencies
-yum install -y libjpeg-turbo-devel zlib-devel libtiff-devel freetype-devel lcms2-devel \
-    libwebp-devel tcl-devel tk-devel harfbuzz-devel fribidi-devel libraqm-devel libimagequant-devel
+# Create lib directory in the build output
+mkdir -p .vercel/output/lib
 
-# Create symbolic links for libjpeg
-ln -s /usr/lib64/libjpeg.so.62 /var/task/libjpeg.so.62
+# Copy system libraries
+cp /usr/lib64/libjpeg.so.62* .vercel/output/lib/
+cp /usr/lib64/libpng16.so.16* .vercel/output/lib/
+cp /usr/lib64/libz.so.1* .vercel/output/lib/
+cp /usr/lib64/libtiff.so.5* .vercel/output/lib/
+
+# Set LD_LIBRARY_PATH in the runtime
+echo 'export LD_LIBRARY_PATH=/var/task/lib:$LD_LIBRARY_PATH' > .vercel/output/config.sh
 
 # Install Python dependencies
-pip install -r requirements.txt
+pip install --target .vercel/output/python -r requirements.txt
+
+# Copy application files
+cp -r api .vercel/output/
+cp prayer_image.py .vercel/output/
+
+# Create the Vercel output configuration
+cat > .vercel/output/config.json << EOF
+{
+  "version": 3,
+  "routes": [
+    { "src": "/(.*)", "dest": "/api/index.py" }
+  ],
+  "env": {
+    "LD_LIBRARY_PATH": "/var/task/lib"
+  }
+}
+EOF
