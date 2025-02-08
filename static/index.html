@@ -126,12 +126,24 @@
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
-                    body: `text=${encodeURIComponent(text)}`
+                    body: new URLSearchParams({
+                        text: text
+                    })
                 });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
 
                 let data;
                 try {
-                    data = await response.json();
+                    const text = await response.text();
+                    try {
+                        data = JSON.parse(text);
+                    } catch (parseError) {
+                        console.error('Server response:', text);
+                        throw new Error('Invalid JSON in server response');
+                    }
                 } catch (parseError) {
                     console.error('Error parsing JSON:', parseError);
                     alert('Error: Failed to parse server response');
