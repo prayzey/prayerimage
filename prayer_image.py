@@ -92,7 +92,7 @@ def measure_text_height(text, font, max_width, draw, line_spacing_factor=0.1):
     total_height = sum(line_heights) + line_spacing * (len(lines) - 1)
     return total_height, lines
 
-def get_font_size_that_fits(text, max_width, max_height, font_path=None, max_size=500, min_size=80):
+def get_font_size_that_fits(text, max_width, max_height, font_path=None, max_size=300, min_size=40):
     temp_img = Image.new('RGB', (1, 1))
     draw = ImageDraw.Draw(temp_img)
 
@@ -283,8 +283,14 @@ def create_prayer_image(text, date_text="", output_filename="prayer.png", width=
     
     # Pre-calculate the smallest font size needed for all parts
     # Reduce margins to use more screen space
-    margin_x = width * 0.05  # 5% margin for more space
-    margin_y = height * 0.05  # 5% margin for more space
+    # Adjust margins based on text length
+    text_length = len(text)
+    if text_length > 500:
+        margin_x = width * 0.03  # 3% margin for very long text
+        margin_y = height * 0.03
+    else:
+        margin_x = width * 0.05  # 5% margin for normal text
+        margin_y = height * 0.05
     max_width_area = width - 2 * margin_x
     max_height_area = height - 2 * margin_y
     
@@ -293,23 +299,26 @@ def create_prayer_image(text, date_text="", output_filename="prayer.png", width=
         # Check if we're in Vercel environment
         is_vercel = os.environ.get('VERCEL') == '1' or '/var/task' in os.getcwd()
         
+        # Count number of words to better estimate needed size
+        word_count = len(text.split())
+        
         if is_vercel:
-            # Much larger font sizes for Vercel's default font
-            if text_length < 100:
-                return 500  # Very short text
-            elif text_length < 200:
-                return 400
-            elif text_length < 300:
-                return 300
+            # Adjusted sizes for Vercel's default font
+            if word_count < 5:
+                return 300  # Very short text (few words)
+            elif word_count < 15:
+                return 200  # Short text
+            elif word_count < 30:
+                return 150  # Medium text
             else:
-                return 250
+                return 100  # Long text
         else:
-            # Original sizes for local environment
-            if text_length < 100:
-                return 120  # Very short text
-            elif text_length < 200:
+            # Local environment sizes
+            if word_count < 5:
+                return 120
+            elif word_count < 15:
                 return 100
-            elif text_length < 300:
+            elif word_count < 30:
                 return 80
             else:
                 return 60
