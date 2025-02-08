@@ -13,7 +13,7 @@ app = Flask(__name__, static_folder='../static')
 def serve_index():
     return send_from_directory(app.static_folder, 'index.html')
 
-@app.route('/api/generate', methods=['POST'])
+@app.route('/api/api/generate', methods=['POST'])
 def generate():
     text = request.form.get('text', '')
     if not text:
@@ -50,7 +50,7 @@ def generate():
         print(f"Error generating image: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api', methods=['GET'])
+@app.route('/api/api', methods=['GET'])
 def home():
     return 'Prayer Image Generator API is running!'
 
