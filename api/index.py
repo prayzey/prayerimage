@@ -1,11 +1,36 @@
 from flask import Flask, request, send_file, jsonify, send_from_directory
+from werkzeug.exceptions import HTTPException
 import sys
 import os
+import traceback
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from prayer_image import create_prayer_image
 import tempfile
 from datetime import datetime
 import base64
+
+# Global error handler
+@app.errorhandler(Exception)
+def handle_exception(e):
+    # Pass through HTTP errors
+    if isinstance(e, HTTPException):
+        return jsonify({
+            'error': str(e),
+            'status_code': e.code
+        }), e.code
+
+    # Now handle non-HTTP exceptions
+    error_info = {
+        'error': str(e),
+        'status_code': 500,
+        'type': type(e).__name__
+    }
+    
+    # Print full traceback to server logs
+    print('Exception on %s [%s]' % (request.path, request.method), file=sys.stderr)
+    traceback.print_exc()
+    
+    return jsonify(error_info), 500
 
 app = Flask(__name__, static_folder='../static')
 
@@ -13,7 +38,7 @@ app = Flask(__name__, static_folder='../static')
 def serve_index():
     return send_from_directory(app.static_folder, 'index.html')
 
-@app.route('/api/api/generate', methods=['POST'])
+@app.route('/api/generate', methods=['POST'])
 def generate():
     try:
         text = request.form.get('text', '')

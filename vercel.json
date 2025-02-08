@@ -12,11 +12,16 @@
     ],
     "routes": [
         {
-            "src": "/api/api/(.*)",
-            "dest": "/api/index.py"
+            "src": "/api/(.*)",
+            "dest": "api/index.py"
         },
         {
-            "handle": "filesystem"
+            "src": "/static/(.*)",
+            "dest": "/static/$1"
+        },
+        {
+            "src": "/favicon.ico",
+            "dest": "/static/favicon.ico"
         },
         {
             "src": "/",
