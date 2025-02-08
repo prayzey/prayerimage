@@ -158,6 +158,11 @@ def split_long_text(text, max_chars=270, min_remaining_words=10):
     words = text.split()
     i = 0
     
+    # If there's a scripture reference at the start, handle it first
+    if scripture_ref and text.startswith(scripture_ref):
+        current_part = scripture_ref
+        i = len(scripture_ref.split())
+    
     while i < len(words):
         word = words[i]
         test_part = current_part + (" " if current_part else "") + word
@@ -165,41 +170,21 @@ def split_long_text(text, max_chars=270, min_remaining_words=10):
         # Calculate remaining words
         remaining_words = len(words) - i - 1
         
-        # Check if this word starts a scripture reference
-        if scripture_ref and text[text.find(word):].startswith(scripture_ref):
-            # Add the entire reference as one unit
-            ref_words = scripture_ref.split()
-            test_part = current_part + (" " if current_part else "") + scripture_ref
-            
-            # If we're near the end and don't have many words left, keep it in the current part
-            if remaining_words <= min_remaining_words:
-                current_part = test_part
-            else:
-                if len(test_part) <= max_chars:
-                    current_part = test_part
-                else:
-                    if current_part:
-                        parts.append(current_part)
-                    current_part = scripture_ref
-            i += len(ref_words)
-            continue
-        
         # Normal word processing
-        # If we're near the end and don't have many words left, try to keep it in the current part
-        if remaining_words <= min_remaining_words:
-            # Try to fit remaining words in current part
-            remaining_text = " ".join(words[i:])
-            test_full_part = current_part + (" " if current_part else "") + remaining_text
-            if len(test_full_part) <= max_chars * 1.2:  # Allow slightly longer final part
-                current_part = test_full_part
-                break
-        
         if len(test_part) <= max_chars:
             current_part = test_part
         else:
             if current_part:
                 parts.append(current_part)
             current_part = word
+            
+        # If we're near the end, try to keep remaining words together
+        if remaining_words <= min_remaining_words and i == len(words) - remaining_words - 1:
+            remaining_text = " ".join(words[i+1:])
+            test_full_part = current_part + (" " if current_part else "") + remaining_text
+            if len(test_full_part) <= max_chars * 1.5:  # Allow up to 50% longer for final part
+                current_part = test_full_part
+                break
         
         # Check for sentence endings (but not in scripture references)
         if word.endswith(('.', '!', '?')) and (not scripture_ref or word not in scripture_ref):

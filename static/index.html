@@ -129,7 +129,14 @@
                     body: `text=${encodeURIComponent(text)}`
                 });
 
-                const data = await response.json();
+                let data;
+                try {
+                    data = await response.json();
+                } catch (parseError) {
+                    console.error('Error parsing JSON:', parseError);
+                    alert('Error: Failed to parse server response');
+                    return;
+                }
                 
                 if (response.ok) {
                     // Clear previous images
@@ -162,11 +169,13 @@
                     document.getElementById('result').classList.remove('hidden');
                     document.getElementById('downloadAllBtn').classList.remove('hidden');
                 } else {
-                    alert(data.error || 'Failed to generate image');
+                    const errorMessage = data.error || 'Failed to generate image';
+                    console.error('Server error:', errorMessage);
+                    alert(errorMessage);
                 }
             } catch (error) {
-                alert('An error occurred while generating the image');
-                console.error(error);
+                console.error('Network error:', error);
+                alert('Network error: Failed to connect to the server');
             } finally {
                 document.getElementById('loading').classList.add('hidden');
             }
