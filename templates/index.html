@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prayer Image Generator</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='logos/WIN LOGO.png') }}">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Header with Logo -->
+    <header class="bg-white shadow-md">
+        <div class="container mx-auto px-4 py-4 flex items-center justify-center relative">
+            <div class="flex items-center gap-4">
+                <img src="{{ url_for('static', filename='logos/WIN LOGO.png') }}" alt="Logo" class="h-12 w-auto">
+                <h1 class="text-3xl font-bold">Prayer Image Generator</h1>
+            </div>
+            <div class="absolute right-4 flex items-center gap-6">
+                <a href="https://www.instagram.com/winnerschapelbarrie/" target="_blank" rel="noopener noreferrer" 
+                   class="instagram-gradient hover:opacity-80 transition-opacity">
+                    <i class="fab fa-instagram social-icon"></i>
+                </a>
+                <a href="https://www.youtube.com/@WCIBARRIE" target="_blank" rel="noopener noreferrer"
+                   class="hover:opacity-80 transition-opacity">
+                    <i class="fab fa-youtube social-icon youtube-icon"></i>
+                </a>
+                <a href="https://www.facebook.com/p/Winners-Chapel-Intnl-Barrie-100083172354406/" target="_blank" rel="noopener noreferrer"
+                   class="hover:opacity-80 transition-opacity">
+                    <i class="fab fa-facebook social-icon facebook-icon"></i>
+                </a>
+                <a href="https://www.wciba.ca/" target="_blank" rel="noopener noreferrer"
+                   class="hover:opacity-80 transition-opacity">
+                    <i class="fas fa-globe social-icon website-icon"></i>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <style>
+        .instagram-gradient {
+            background: -webkit-linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .social-icon {
+            font-size: 1.75rem;
+        }
+        .youtube-icon {
+            color: #FF0000 !important;
+        }
+        .facebook-icon {
+            color: #1877F2 !important;
+        }
+        .website-icon {
+            color: #2196F3 !important;
+        }
+    </style>
+
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-8">  <!-- Increased max-width and padding -->
+            <div class="mb-6">  <!-- Increased margin -->
+                <p class="text-gray-600 mb-3 text-lg">Enter your prayers or announcements below.</p>
+                <textarea id="prayerText" 
+                    class="w-full h-96 p-4 border rounded-lg resize-vertical focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg" 
+                    placeholder="Enter your prayer text here..."
+                    style="min-height: 24rem;"></textarea>  <!-- Made taller and resizable vertically -->
+            </div>
+            <div class="flex justify-center">
+                <button onclick="generateImage()" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                    Generate Image
+                </button>
+            </div>
+            <div id="status" class="mt-4 text-center text-gray-600"></div>
+            <div id="imageContainer" class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </div>
+    </main>
+
+    <script>
+        async function downloadAllImages() {
+            const images = document.querySelectorAll('#imageContainer img');
+            for (let i = 0; i < images.length; i++) {
+                const image = images[i];
+                const response = await fetch(image.src);
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `prayer_image_${i + 1}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                await new Promise(resolve => setTimeout(resolve, 500)); // Add delay between downloads
+            }
+        }
+
+        async function generateImage() {
+            const text = document.getElementById('prayerText').value;
+            const status = document.getElementById('status');
+            const imageContainer = document.getElementById('imageContainer');
+            
+            if (!text.trim()) {
+                status.textContent = 'Please enter some text first.';
+                return;
+            }
+
+            status.textContent = 'Generating image...';
+            imageContainer.innerHTML = ''; // Clear previous images
+            
+            try {
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `text=${encodeURIComponent(text)}`
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    status.textContent = `Error: ${data.error}`;
+                    return;
+                }
+
+                // Create and append images
+                data.image_urls.forEach(url => {
+                    const imgContainer = document.createElement('div');
+                    imgContainer.className = 'relative';
+                    
+                    const img = document.createElement('img');
+                    img.src = url;
+                    img.className = 'w-full rounded-lg shadow-md';
+                    imgContainer.appendChild(img);
+
+                    // Add download button for each image
+                    const downloadBtn = document.createElement('button');
+                    downloadBtn.className = 'absolute top-2 right-2 bg-white rounded-full p-2 shadow-md hover:bg-gray-100';
+                    downloadBtn.innerHTML = '<i class="fas fa-download"></i>';
+                    downloadBtn.onclick = async () => {
+                        const response = await fetch(url);
+                        const blob = await response.blob();
+                        const downloadUrl = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = downloadUrl;
+                        a.download = url.split('/').pop();
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(downloadUrl);
+                    };
+                    imgContainer.appendChild(downloadBtn);
+                    
+                    imageContainer.appendChild(imgContainer);
+                });
+                
+                if (data.image_urls.length > 0) {
+                    status.innerHTML = `
+                        Generated ${data.image_urls.length} image${data.image_urls.length > 1 ? 's' : ''}! 
+                        <button onclick="downloadAllImages()" class="ml-2 bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-sm">
+                            Download All
+                        </button>
+                    `;
+                } else {
+                    status.textContent = 'No images were generated.';
+                }
+            } catch (error) {
+                status.textContent = `Error: ${error.message}`;
+                console.error('Error:', error);
+            }
+        }
+    </script>
+</body>
+</html>

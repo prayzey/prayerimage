@@ -34,13 +34,11 @@ def handle_exception(e):
     
     return jsonify(error_info), 500
 
-app = Flask(__name__, static_folder='../static')
-
 @app.route('/')
 def serve_index():
-    return send_from_directory(app.static_folder, 'index.html')
+    return render_template('index.html')
 
-@app.route('/api/generate', methods=['POST'])
+@app.route('/generate', methods=['POST'])
 def generate():
     try:
         text = request.form.get('text', '')
