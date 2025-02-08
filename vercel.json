@@ -20,15 +20,15 @@
             "dest": "/static/$1"
         },
         {
-            "src": "/(.*)",
-            "dest": "api/index.py"
-        }
-    ]
-        {
             "src": "/favicon.ico",
             "dest": "/static/favicon.ico"
         },
         {
+            "src": "/(.*)",
+            "dest": "api/index.py"
+        }
+    ]
+}
             "src": "/",
             "dest": "/static/index.html"
         },
