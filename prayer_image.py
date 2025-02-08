@@ -290,14 +290,15 @@ def create_prayer_image(text, date_text="", output_filename="prayer.png", width=
     
     # Calculate optimal font size based on text length
     def calculate_initial_font_size(text_length):
+        # Increase base font sizes since we're using a consistent font now
         if text_length < 100:
-            return 120  # Very short text
+            return 200  # Very short text
         elif text_length < 200:
-            return 100
+            return 160  # Medium text
         elif text_length < 300:
-            return 80
+            return 120  # Longer text
         else:
-            return 60
+            return 100  # Very long text
     
     # Find the optimal font size that works for all parts
     min_main_font_size = float('inf')
@@ -369,31 +370,46 @@ def create_prayer_image(text, date_text="", output_filename="prayer.png", width=
         # Use the pre-calculated font size
         main_font_size = min_main_font_size
 
-        # Get the font path - handle both local and Vercel environments
+        # Get absolute path to the font file
         current_dir = os.path.dirname(os.path.abspath(__file__))
+        font_file = 'ArialBold.ttf'
+        
+        # Try multiple possible font locations
         font_paths = [
-            os.path.join(current_dir, 'fonts', 'ArialBold.ttf'),  # Local development path
-            os.path.join('fonts', 'ArialBold.ttf'),  # Vercel path (relative to /api)
-            os.path.join(current_dir, 'api', 'fonts', 'ArialBold.ttf'),  # Alternative local path
-            "Arial Bold",  # System font fallback
+            os.path.join(current_dir, 'api', 'fonts', font_file),
+            os.path.join('api', 'fonts', font_file),  # Vercel serverless path
+            os.path.join(current_dir, 'fonts', font_file),
+            os.path.join('fonts', font_file),
         ]
         
-        # Debug font paths
-        print(f"Trying font paths: {font_paths}")
+        # Debug information
+        print(f"Current directory: {current_dir}")
+        print(f"Searching for font in paths: {font_paths}")
         
         font_loaded = False
+        font_error = None
+        
         for font_path in font_paths:
             try:
-                if title_font_size > 0:
-                    title_font = ImageFont.truetype(font_path, title_font_size)
-                main_font = ImageFont.truetype(font_path, main_font_size)
-                font_loaded = True
-                break
+                print(f"Attempting to load font from: {font_path}")
+                if os.path.exists(font_path):
+                    print(f"Font file found at: {font_path}")
+                    if title_font_size > 0:
+                        title_font = ImageFont.truetype(font_path, title_font_size)
+                    main_font = ImageFont.truetype(font_path, main_font_size)
+                    print(f"Successfully loaded font from: {font_path}")
+                    font_loaded = True
+                    break
+                else:
+                    print(f"Font file not found at: {font_path}")
             except Exception as e:
+                font_error = str(e)
+                print(f"Error loading font from {font_path}: {e}")
                 continue
         
         if not font_loaded:
-            print(f"Warning: Could not load font from any path, using default")
+            print(f"WARNING: Could not load font from any path. Last error: {font_error}")
+            print("Falling back to default font")
             title_font = main_font = ImageFont.load_default()
 
         y_cursor = margin_y
