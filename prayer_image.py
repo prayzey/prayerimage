@@ -228,6 +228,13 @@ def add_logo(img, logo_path, target_width=100):  # Reduced from 150px to 100px f
         return img
 
 def create_prayer_image(text, date_text="", output_filename="prayer.png", width=1920, height=1080):
+    # Force width and height to be integers
+    width = int(width)
+    height = int(height)
+    
+    # Ensure minimum dimensions
+    width = max(width, 1920)
+    height = max(height, 1080)
     # Function to draw text with proper word wrapping
     def draw_wrapped_text(draw, text, font, max_width):
         words = text.split()
@@ -362,10 +369,20 @@ def create_prayer_image(text, date_text="", output_filename="prayer.png", width=
         # Use the pre-calculated font size
         main_font_size = min_main_font_size
 
+        # Use OpenSans as our primary font
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        font_path = os.path.join(current_dir, 'static', 'fonts', 'OpenSans-Bold.ttf')
+        
+        # Increase font sizes to compensate for OpenSans being slightly smaller
+        title_font_size = int(title_font_size * 1.2) if title_font_size > 0 else 0
+        main_font_size = int(main_font_size * 1.2)
+        
         try:
-            title_font = ImageFont.truetype("Arial Bold", title_font_size) if title_font_size > 0 else None
-            main_font = ImageFont.truetype("Arial Bold", main_font_size)
-        except:
+            if title_font_size > 0:
+                title_font = ImageFont.truetype(font_path, title_font_size)
+            main_font = ImageFont.truetype(font_path, main_font_size)
+        except Exception as e:
+            print(f"Warning: Could not load font {font_path}: {str(e)}")
             title_font = main_font = ImageFont.load_default()
 
         y_cursor = margin_y
