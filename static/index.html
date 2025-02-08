@@ -121,7 +121,7 @@
             document.getElementById('result').classList.add('hidden');
 
             try {
-                const response = await fetch('/generate', {
+                const response = await fetch('/api/generate', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
@@ -137,25 +137,19 @@
                     container.innerHTML = '';
                     
                     // Create elements for each image
-                    data.image_urls.forEach((imageUrl, index) => {
+                    data.image_data.forEach((imageBase64, index) => {
                         const imageWrapper = document.createElement('div');
-                        imageWrapper.className = 'border rounded-lg p-6 bg-gray-50';  // Added padding and background
+                        imageWrapper.className = 'border rounded-lg p-6 bg-gray-50';
                         
                         const img = document.createElement('img');
-                        img.src = imageUrl;
-                        img.className = 'w-full h-auto rounded-lg shadow-md';  // Added rounded corners and shadow
+                        img.src = `data:image/png;base64,${imageBase64}`;
+                        img.className = 'w-full h-auto rounded-lg shadow-md';
                         img.alt = `Generated Prayer Image ${index + 1}`;
                         
                         const downloadLink = document.createElement('a');
-                        downloadLink.href = imageUrl;
-                        // Force the download attribute and extension
-                        const filename = imageUrl.split('/').pop();
-                        if (!filename.endsWith('.png')) {
-                            downloadLink.download = filename + '.png';
-                        } else {
-                            downloadLink.download = filename;
-                        }
-                        downloadLink.setAttribute('data-download-link', 'true');  // Add attribute for download all feature
+                        downloadLink.href = img.src;
+                        downloadLink.download = `prayer_image_${index + 1}.png`;
+                        downloadLink.setAttribute('data-download-link', 'true');
                         downloadLink.className = 'block mt-6 text-center bg-green-500 text-white py-3 px-6 rounded-lg hover:bg-green-600 transition-colors font-semibold';
                         downloadLink.textContent = `Download Image ${index + 1}`;
                         
