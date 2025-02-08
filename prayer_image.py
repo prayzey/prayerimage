@@ -128,8 +128,16 @@ def get_font_size_that_fits(text, max_width, max_height, font_path=None, max_siz
         try:
             if os.path.isfile(path):
                 print(f"Loading font from: {path}")
-                font = ImageFont.truetype(path, size=min_size)
-                break
+                font = ImageFont.truetype(path, size=250)  # Use Vercel's size
+                # Verify font metrics match Vercel's
+                ascent, descent = font.getmetrics()
+                print(f"Font metrics - size: 250, ascent: {ascent}, descent: {descent}")
+                if ascent == 227 and descent == 53:  # Vercel's metrics
+                    print("Font metrics match Vercel's")
+                    font = ImageFont.truetype(path, size=min_size)  # Now use requested size
+                    break
+                else:
+                    print("Font metrics don't match Vercel's, trying next font")
         except Exception as e:
             print(f"Failed to load font {path}: {e}")
             continue

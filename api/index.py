@@ -51,6 +51,17 @@ def generate():
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             
             try:
+                # Ensure font directory exists
+                font_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'api', 'fonts')
+                if not os.path.exists(font_dir):
+                    os.makedirs(font_dir)
+                
+                # Check if font exists
+                font_path = os.path.join(font_dir, 'ArialBold.ttf')
+                if not os.path.exists(font_path):
+                    print(f"Font not found at {font_path}")
+                    return jsonify({'error': 'Font file not found'}), 500
+                
                 # Generate unique filename
                 base_filename = f'prayer_{timestamp}.png'
                 output_path = os.path.join(temp_dir, base_filename)
@@ -73,6 +84,7 @@ def generate():
                 })
             except Exception as inner_e:
                 print(f"Error generating image: {str(inner_e)}")
+                traceback.print_exc()  # Print full traceback
                 return jsonify({'error': str(inner_e)}), 500
     except Exception as e:
         print(f"Server error: {str(e)}")
