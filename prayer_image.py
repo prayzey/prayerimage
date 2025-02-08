@@ -92,7 +92,7 @@ def measure_text_height(text, font, max_width, draw, line_spacing_factor=0.1):
     total_height = sum(line_heights) + line_spacing * (len(lines) - 1)
     return total_height, lines
 
-def get_font_size_that_fits(text, max_width, max_height, font_path=None, max_size=300, min_size=10):
+def get_font_size_that_fits(text, max_width, max_height, font_path=None, max_size=300, min_size=80):
     temp_img = Image.new('RGB', (1, 1))
     draw = ImageDraw.Draw(temp_img)
 
@@ -283,8 +283,8 @@ def create_prayer_image(text, date_text="", output_filename="prayer.png", width=
     
     # Pre-calculate the smallest font size needed for all parts
     # Reduce margins to use more screen space
-    margin_x = width * 0.08
-    margin_y = height * 0.08
+    margin_x = width * 0.05  # 5% margin for more space
+    margin_y = height * 0.05  # 5% margin for more space
     max_width_area = width - 2 * margin_x
     max_height_area = height - 2 * margin_y
     
@@ -306,8 +306,8 @@ def create_prayer_image(text, date_text="", output_filename="prayer.png", width=
         initial_size = calculate_initial_font_size(len(main_text))
         font_size = get_font_size_that_fits(
             main_text,
-            max_width_area * 0.95,  # Increased from 0.9
-            max_height_area - (margin_y * 2),  # Reduced from 3
+            max_width_area * 0.8,  # Use 80% of width for better spacing
+            max_height_area * 0.8,  # Use 80% of height for better spacing
             max_size=initial_size
         )
         min_main_font_size = min(min_main_font_size, font_size)
@@ -369,18 +369,32 @@ def create_prayer_image(text, date_text="", output_filename="prayer.png", width=
         # Use the pre-calculated font size
         main_font_size = min_main_font_size
 
-        try:
-            title_font = ImageFont.truetype("Arial Bold", title_font_size) if title_font_size > 0 else None
-            main_font = ImageFont.truetype("Arial Bold", main_font_size)
-        except:
+        # Get the font path - handle both local and Vercel environments
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        font_paths = [
+            os.path.join(current_dir, 'fonts', 'ArialBold.ttf'),  # Local development path
+            os.path.join('fonts', 'ArialBold.ttf'),  # Vercel path (relative to /api)
+            os.path.join(current_dir, 'api', 'fonts', 'ArialBold.ttf'),  # Alternative local path
+            "Arial Bold",  # System font fallback
+        ]
+        
+        # Debug font paths
+        print(f"Trying font paths: {font_paths}")
+        
+        font_loaded = False
+        for font_path in font_paths:
             try:
-                # Try system font paths
-                system_font = "/System/Library/Fonts/Supplemental/Arial Bold.ttf"
-                title_font = ImageFont.truetype(system_font, title_font_size) if title_font_size > 0 else None
-                main_font = ImageFont.truetype(system_font, main_font_size)
-            except:
-                print("Warning: Could not load Arial Bold font, using default")
-                title_font = main_font = ImageFont.load_default()
+                if title_font_size > 0:
+                    title_font = ImageFont.truetype(font_path, title_font_size)
+                main_font = ImageFont.truetype(font_path, main_font_size)
+                font_loaded = True
+                break
+            except Exception as e:
+                continue
+        
+        if not font_loaded:
+            print(f"Warning: Could not load font from any path, using default")
+            title_font = main_font = ImageFont.load_default()
 
         y_cursor = margin_y
 
