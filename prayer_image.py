@@ -96,6 +96,11 @@ def get_font_size_that_fits(text, max_width, max_height, font_path=None, max_siz
     temp_img = Image.new('RGB', (1, 1))
     draw = ImageDraw.Draw(temp_img)
 
+    # Add a safety margin to account for different environments
+    safety_margin = 0.9  # Use 90% of the calculated size
+    max_width = int(max_width * safety_margin)
+    max_height = int(max_height * safety_margin)
+
     best_size = min_size
     low, high = min_size, max_size
 
@@ -112,14 +117,21 @@ def get_font_size_that_fits(text, max_width, max_height, font_path=None, max_siz
         except:
             font = ImageFont.load_default()
 
-        text_height, _ = measure_text_height(text, font, max_width, draw, 0.1)
+        text_height, lines = measure_text_height(text, font, max_width, draw, 0.1)
+        # Debug logging
+        print(f"Trying font size {mid}: text height = {text_height}, max height = {max_height}")
+        print(f"Text lines at size {mid}: {lines}")
+
         if text_height <= max_height:
             best_size = mid
             low = mid + 1
         else:
             high = mid - 1
 
-    return best_size
+    # Apply safety margin to final size
+    final_size = int(best_size * safety_margin)
+    print(f"Final font size selected: {final_size} (before safety margin: {best_size})")
+    return final_size
 
 def parse_prayer_number(text):
     match = re.search(r'(?i)\bprayer\s+(\d+)\b', text)
@@ -290,14 +302,15 @@ def create_prayer_image(text, date_text="", output_filename="prayer.png", width=
     
     # Calculate optimal font size based on text length
     def calculate_initial_font_size(text_length):
+        # More conservative initial sizes
         if text_length < 100:
-            return 200  # Very short text gets largest font
+            return 180  # Very short text gets largest font
         elif text_length < 200:
-            return 160  # Medium text
+            return 140  # Medium text
         elif text_length < 300:
-            return 140  # Longer text
+            return 120  # Longer text
         else:
-            return 120  # Minimum size for very long text
+            return 100  # Minimum size for very long text
     
     # Find the optimal font size that works for all parts
     min_main_font_size = float('inf')
