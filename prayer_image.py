@@ -112,30 +112,32 @@ def measure_text_height(text, font, max_width, draw, line_spacing_factor=0.1):
     return total_height, lines
 
 def get_font_size_that_fits(text, max_width, max_height, font_path=None, max_size=300, min_size=150):
-    # Match Vercel's font loading behavior
+    # Use exact same font loading as Vercel
     import os
     font = None
     
-    # First try loading Arial Bold from system
-    try:
-        font = ImageFont.truetype('Arial Bold', size=min_size)
-        print("Loaded Arial Bold from system")
-    except Exception as e:
-        print(f"Could not load Arial Bold: {e}")
+    # Define font paths exactly as in Vercel
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    font_paths = [
+        os.path.join(current_dir, 'api', 'fonts', 'ArialBold.ttf'),  # Local path matching Vercel
+        '/var/task/api/fonts/ArialBold.ttf',  # Vercel path
+    ]
     
-    # If system font fails, try default font
+    # Try loading our custom TTF first
+    for path in font_paths:
+        try:
+            if os.path.isfile(path):
+                print(f"Loading font from: {path}")
+                font = ImageFont.truetype(path, size=min_size)
+                break
+        except Exception as e:
+            print(f"Failed to load font {path}: {e}")
+            continue
+    
+    # If custom font fails, use default
     if font is None:
-        print("Using default font as fallback")
+        print("No custom fonts found, using default font")
         font = ImageFont.load_default()
-        # Scale default font to match Vercel's metrics
-        if isinstance(font, ImageFont.ImageFont):
-            # Default font size is 10, scale up to match Vercel
-            font = ImageFont.truetype('Arial Bold', size=250)
-            ascent, descent = font.getmetrics()
-            if ascent != 227 or descent != 53:
-                # If metrics don't match Vercel, adjust font size
-                scale = 227 / ascent
-                font = ImageFont.truetype('Arial Bold', size=int(250 * scale))
     temp_img = Image.new('RGB', (1, 1))
     draw = ImageDraw.Draw(temp_img)
 
