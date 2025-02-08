@@ -283,21 +283,21 @@ def create_prayer_image(text, date_text="", output_filename="prayer.png", width=
     
     # Pre-calculate the smallest font size needed for all parts
     # Reduce margins to use more screen space
-    margin_x = width * 0.05  # 5% margin for more space
-    margin_y = height * 0.05  # 5% margin for more space
+    margin_x = width * 0.08  # 8% margin for balanced spacing
+    margin_y = height * 0.08  # 8% margin for balanced spacing
     max_width_area = width - 2 * margin_x
     max_height_area = height - 2 * margin_y
     
     # Calculate optimal font size based on text length
     def calculate_initial_font_size(text_length):
         if text_length < 100:
-            return 120  # Very short text
+            return 200  # Very short text gets largest font
         elif text_length < 200:
-            return 100
+            return 160  # Medium text
         elif text_length < 300:
-            return 80
+            return 140  # Longer text
         else:
-            return 60
+            return 120  # Minimum size for very long text
     
     # Find the optimal font size that works for all parts
     min_main_font_size = float('inf')
@@ -306,8 +306,8 @@ def create_prayer_image(text, date_text="", output_filename="prayer.png", width=
         initial_size = calculate_initial_font_size(len(main_text))
         font_size = get_font_size_that_fits(
             main_text,
-            max_width_area * 0.8,  # Use 80% of width for better spacing
-            max_height_area * 0.8,  # Use 80% of height for better spacing
+            max_width_area * 0.95,  # Use 95% of available width
+            max_height_area * 0.95,  # Use 95% of available height
             max_size=initial_size
         )
         min_main_font_size = min(min_main_font_size, font_size)
