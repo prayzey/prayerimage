@@ -16,6 +16,8 @@ def create_gradient_background(width, height):
     return gradient_img
 
 def measure_text_height(text, font, max_width, draw, line_spacing_factor=0.1):
+    # Debug font metrics
+    print(f"Font metrics - size: {font.size}, getsize('X'): {draw.textlength('X', font)}")
     lines = []
     current_line = []
     words = text.split()
@@ -97,9 +99,11 @@ def get_font_size_that_fits(text, max_width, max_height, font_path=None, max_siz
     draw = ImageDraw.Draw(temp_img)
 
     # Add a safety margin to account for different environments
-    safety_margin = 0.9  # Use 90% of the calculated size
-    max_width = int(max_width * safety_margin)
-    max_height = int(max_height * safety_margin)
+    width_margin = 0.85  # Use 85% of width
+    height_margin = 0.85  # Use 85% of height
+    max_width = int(max_width * width_margin)
+    max_height = int(max_height * height_margin)
+    print(f"Adjusted dimensions - width: {max_width}, height: {max_height}")
 
     best_size = min_size
     low, high = min_size, max_size
@@ -118,9 +122,12 @@ def get_font_size_that_fits(text, max_width, max_height, font_path=None, max_siz
             font = ImageFont.load_default()
 
         text_height, lines = measure_text_height(text, font, max_width, draw, 0.1)
+        # Get actual text height using font metrics
+        actual_height = font.size * len(lines) * (1 + line_spacing_factor)
         # Debug logging
-        print(f"Trying font size {mid}: text height = {text_height}, max height = {max_height}")
+        print(f"Trying font size {mid}: calculated height = {text_height}, actual height = {actual_height}, max height = {max_height}")
         print(f"Text lines at size {mid}: {lines}")
+        text_height = actual_height  # Use the actual height calculation
 
         if text_height <= max_height:
             best_size = mid
@@ -302,15 +309,20 @@ def create_prayer_image(text, date_text="", output_filename="prayer.png", width=
     
     # Calculate optimal font size based on text length
     def calculate_initial_font_size(text_length):
-        # More conservative initial sizes
+        # Base size on available height and estimated lines
+        estimated_lines = max(1, text_length // 30)  # Estimate 30 chars per line
+        available_height = max_height_area * 0.85  # Use 85% of height
+        base_size = int(available_height / (estimated_lines * 1.2))  # 1.2 for line spacing
+        
+        # Apply limits
         if text_length < 100:
-            return 180  # Very short text gets largest font
+            return min(200, base_size)  # Cap at 200
         elif text_length < 200:
-            return 140  # Medium text
+            return min(160, base_size)  # Cap at 160
         elif text_length < 300:
-            return 120  # Longer text
+            return min(140, base_size)  # Cap at 140
         else:
-            return 100  # Minimum size for very long text
+            return min(120, base_size)  # Cap at 120
     
     # Find the optimal font size that works for all parts
     min_main_font_size = float('inf')
@@ -319,8 +331,8 @@ def create_prayer_image(text, date_text="", output_filename="prayer.png", width=
         initial_size = calculate_initial_font_size(len(main_text))
         font_size = get_font_size_that_fits(
             main_text,
-            max_width_area * 0.95,  # Use 95% of available width
-            max_height_area * 0.95,  # Use 95% of available height
+            max_width_area * 0.85,  # Use 85% of available width
+            max_height_area * 0.85,  # Use 85% of available height
             max_size=initial_size
         )
         min_main_font_size = min(min_main_font_size, font_size)
