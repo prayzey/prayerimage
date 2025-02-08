@@ -21,9 +21,13 @@ def measure_text_height(text, font, max_width, draw, line_spacing_factor=0.1):
         ascent, descent = font.getmetrics()
         line_height = ascent + descent
         print(f"Font metrics - size: {font.size}, ascent: {ascent}, descent: {descent}, line height: {line_height}")
+        # Validate metrics
+        if ascent < font.size * 0.5 or descent < font.size * 0.1:
+            print("Invalid font metrics detected, using font size based calculation")
+            line_height = int(font.size * 1.2)
     except Exception as e:
         print(f"Error getting font metrics: {e}, using font size as fallback")
-        line_height = font.size
+        line_height = int(font.size * 1.2)
 
     # Add extra padding to max_width to encourage wider text
     effective_max_width = max_width * 1.2  # Use 120% of max width to force wider text
@@ -110,6 +114,37 @@ def measure_text_height(text, font, max_width, draw, line_spacing_factor=0.1):
     return total_height, lines
 
 def get_font_size_that_fits(text, max_width, max_height, font_path=None, max_size=400, min_size=100):
+    # Try different font paths with absolute paths for Vercel
+    import os
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    font_paths = [
+        os.path.join(current_dir, 'fonts', 'ArialBold.ttf'),
+        os.path.join(current_dir, '..', 'fonts', 'ArialBold.ttf'),
+        '/var/task/fonts/ArialBold.ttf',
+        '/var/task/api/fonts/ArialBold.ttf',
+        'Arial Bold',
+        'Arial'
+    ]
+    
+    # Try each font path
+    font = None
+    for path in font_paths:
+        try:
+            if os.path.isfile(path):
+                print(f"Trying to load font from: {path}")
+                font = ImageFont.truetype(path, size=min_size)
+                break
+            elif not path.endswith('.ttf'):
+                print(f"Trying to load system font: {path}")
+                font = ImageFont.truetype(path, size=min_size)
+                break
+        except Exception as e:
+            print(f"Failed to load font {path}: {e}")
+            continue
+    
+    if font is None:
+        print("No fonts could be loaded, using default font")
+        font = ImageFont.load_default()
     temp_img = Image.new('RGB', (1, 1))
     draw = ImageDraw.Draw(temp_img)
 
@@ -288,6 +323,9 @@ def add_logo(img, logo_path, target_width=100):  # Reduced from 150px to 100px f
         return img
 
 def create_prayer_image(text, date_text="", output_filename="prayer.png", width=1920, height=1080):
+    # Force standard dimensions to ensure consistency
+    width = 1920
+    height = 1080
     # Force width and height to be integers
     width = int(width)
     height = int(height)
