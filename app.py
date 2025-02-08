@@ -27,25 +27,32 @@ def serve_image(filename):
 
 @app.route('/generate', methods=['POST'])
 def generate():
-    text = request.form.get('text', '')
-    if not text:
-        return {'error': 'No text provided'}, 400
-    
-    # Split by newlines first
-    prayers = [prayer.strip() for prayer in text.split('\n') if prayer.strip()]
-    
-    # Generate images
-    image_data = []
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    
     try:
+        text = request.form.get('text', '')
+        if not text:
+            return {'error': 'No text provided'}, 400
+        
+        # Split by newlines first
+        prayers = [prayer.strip() for prayer in text.split('\n') if prayer.strip()]
+        
+        # Generate images
+        image_data = []
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        
         for i, prayer in enumerate(prayers):
-            # Generate unique filename for each prayer
-            base_filename = f'prayer_{timestamp}_{i}.png'
-            output_path = os.path.join(UPLOAD_FOLDER, base_filename)
-            
-            # Generate image(s) for this prayer - might return multiple files if prayer is long
-            generated_files = create_prayer_image(prayer, output_filename=output_path)
+            try:
+                # Generate unique filename for each prayer
+                base_filename = f'prayer_{timestamp}_{i}.png'
+                output_path = os.path.join(UPLOAD_FOLDER, base_filename)
+                
+                print(f"Generating image for prayer {i+1}: {prayer[:50]}...")
+                
+                # Generate image(s) for this prayer - might return multiple files if prayer is long
+                generated_files = create_prayer_image(prayer, output_filename=output_path)
+                print(f"Generated files: {generated_files}")
+            except Exception as e:
+                print(f"Error generating image {i+1}: {str(e)}")
+                return {'error': f'Error generating image {i+1}: {str(e)}'}, 500
             
             # Convert images to base64
             for filepath in generated_files:
