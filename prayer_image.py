@@ -116,12 +116,22 @@ def get_font_size_that_fits(text, max_width, max_height, font_path=None, max_siz
     import os
     font = None
     
-    # Define font paths exactly as in Vercel
+    # Define font paths for both local and Vercel environments
     current_dir = os.path.dirname(os.path.abspath(__file__))
+    base_dir = os.path.dirname(current_dir)
     font_paths = [
-        os.path.join(current_dir, 'api', 'fonts', 'ArialBold.ttf'),  # Local path matching Vercel
+        os.path.join(current_dir, 'api', 'fonts', 'ArialBold.ttf'),  # Local path style 1
+        os.path.join(base_dir, 'api', 'fonts', 'ArialBold.ttf'),   # Local path style 2
         '/var/task/api/fonts/ArialBold.ttf',  # Vercel path
+        os.path.join(os.getcwd(), 'api', 'fonts', 'ArialBold.ttf'),  # Alternative path
     ]
+    
+    # Print debug info
+    print(f"Current directory: {current_dir}")
+    print(f"Base directory: {base_dir}")
+    print(f"Working directory: {os.getcwd()}")
+    for path in font_paths:
+        print(f"Checking font path: {path} (exists: {os.path.exists(path)})")
     
     # Try loading our custom TTF first
     for path in font_paths:
