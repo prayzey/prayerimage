@@ -82,16 +82,12 @@
             const images = document.querySelectorAll('#imageContainer img');
             for (let i = 0; i < images.length; i++) {
                 const image = images[i];
-                const response = await fetch(image.src);
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
-                a.href = url;
+                a.href = image.src;
                 a.download = `prayer_image_${i + 1}.png`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
                 await new Promise(resolve => setTimeout(resolve, 500)); // Add delay between downloads
             }
         }
@@ -130,12 +126,12 @@
                 }
 
                 // Create and append images
-                data.image_urls.forEach(url => {
+                data.image_data.forEach((base64Data, index) => {
                     const imgContainer = document.createElement('div');
                     imgContainer.className = 'relative';
                     
                     const img = document.createElement('img');
-                    img.src = url;
+                    img.src = `data:image/png;base64,${base64Data}`;
                     img.className = 'w-full rounded-lg shadow-md';
                     imgContainer.appendChild(img);
 
@@ -143,26 +139,22 @@
                     const downloadBtn = document.createElement('button');
                     downloadBtn.className = 'absolute top-2 right-2 bg-white rounded-full p-2 shadow-md hover:bg-gray-100';
                     downloadBtn.innerHTML = '<i class="fas fa-download"></i>';
-                    downloadBtn.onclick = async () => {
-                        const response = await fetch(url);
-                        const blob = await response.blob();
-                        const downloadUrl = window.URL.createObjectURL(blob);
+                    downloadBtn.onclick = () => {
                         const a = document.createElement('a');
-                        a.href = downloadUrl;
-                        a.download = url.split('/').pop();
+                        a.href = img.src;
+                        a.download = `prayer_image_${index + 1}.png`;
                         document.body.appendChild(a);
                         a.click();
                         document.body.removeChild(a);
-                        window.URL.revokeObjectURL(downloadUrl);
                     };
                     imgContainer.appendChild(downloadBtn);
                     
                     imageContainer.appendChild(imgContainer);
                 });
                 
-                if (data.image_urls.length > 0) {
+                if (data.image_data.length > 0) {
                     status.innerHTML = `
-                        Generated ${data.image_urls.length} image${data.image_urls.length > 1 ? 's' : ''}! 
+                        Generated ${data.image_data.length} image${data.image_data.length > 1 ? 's' : ''}! 
                         <button onclick="downloadAllImages()" class="ml-2 bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-sm">
                             Download All
                         </button>
