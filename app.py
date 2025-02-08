@@ -35,7 +35,7 @@ def generate():
     prayers = [prayer.strip() for prayer in text.split('\n') if prayer.strip()]
     
     # Generate images
-    image_urls = []
+    image_data = []
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     
     try:
@@ -47,15 +47,21 @@ def generate():
             # Generate image(s) for this prayer - might return multiple files if prayer is long
             generated_files = create_prayer_image(prayer, output_filename=output_path)
             
-            # Convert local file paths to URLs
+            # Convert images to base64
             for filepath in generated_files:
-                filename = os.path.basename(filepath)
-                image_urls.append(f'/static/generated/{filename}')
+                with open(filepath, 'rb') as f:
+                    image_bytes = f.read()
+                    import base64
+                    image_base64 = base64.b64encode(image_bytes).decode('utf-8')
+                    image_data.append(image_base64)
+                    
+                # Clean up the file after converting to base64
+                os.remove(filepath)
                 
     except Exception as e:
         return {'error': str(e)}, 500
     
-    return {'image_urls': image_urls}
+    return {'image_data': image_data}
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5001, debug=True)

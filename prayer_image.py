@@ -283,21 +283,21 @@ def create_prayer_image(text, date_text="", output_filename="prayer.png", width=
     
     # Pre-calculate the smallest font size needed for all parts
     # Reduce margins to use more screen space
-    margin_x = width * 0.05  # Reduced from 0.08
-    margin_y = height * 0.05  # Reduced from 0.08
+    margin_x = width * 0.08
+    margin_y = height * 0.08
     max_width_area = width - 2 * margin_x
     max_height_area = height - 2 * margin_y
     
     # Calculate optimal font size based on text length
     def calculate_initial_font_size(text_length):
         if text_length < 100:
-            return 1000  # Very short text can be very large
+            return 120  # Very short text
         elif text_length < 200:
-            return 800
+            return 100
         elif text_length < 300:
-            return 600
+            return 80
         else:
-            return 400
+            return 60
     
     # Find the optimal font size that works for all parts
     min_main_font_size = float('inf')
@@ -369,21 +369,18 @@ def create_prayer_image(text, date_text="", output_filename="prayer.png", width=
         # Use the pre-calculated font size
         main_font_size = min_main_font_size
 
-        # Use OpenSans as our primary font
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        font_path = os.path.join(current_dir, 'static', 'fonts', 'OpenSans-Bold.ttf')
-        
-        # Increase font sizes to compensate for OpenSans being slightly smaller
-        title_font_size = int(title_font_size * 1.2) if title_font_size > 0 else 0
-        main_font_size = int(main_font_size * 1.2)
-        
         try:
-            if title_font_size > 0:
-                title_font = ImageFont.truetype(font_path, title_font_size)
-            main_font = ImageFont.truetype(font_path, main_font_size)
-        except Exception as e:
-            print(f"Warning: Could not load font {font_path}: {str(e)}")
-            title_font = main_font = ImageFont.load_default()
+            title_font = ImageFont.truetype("Arial Bold", title_font_size) if title_font_size > 0 else None
+            main_font = ImageFont.truetype("Arial Bold", main_font_size)
+        except:
+            try:
+                # Try system font paths
+                system_font = "/System/Library/Fonts/Supplemental/Arial Bold.ttf"
+                title_font = ImageFont.truetype(system_font, title_font_size) if title_font_size > 0 else None
+                main_font = ImageFont.truetype(system_font, main_font_size)
+            except:
+                print("Warning: Could not load Arial Bold font, using default")
+                title_font = main_font = ImageFont.load_default()
 
         y_cursor = margin_y
 
