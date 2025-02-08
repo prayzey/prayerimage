@@ -1,4 +1,4 @@
-from flask import Flask, request, send_file, jsonify, send_from_directory
+from flask import Flask, request, send_file, jsonify, send_from_directory, render_template
 from werkzeug.exceptions import HTTPException
 import sys
 import os
@@ -8,6 +8,8 @@ from prayer_image import create_prayer_image
 import tempfile
 from datetime import datetime
 import base64
+
+app = Flask(__name__, static_folder='../static', template_folder='../templates')
 
 # Global error handler
 @app.errorhandler(Exception)
