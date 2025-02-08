@@ -1,4 +1,11 @@
-from PIL import Image, ImageDraw, ImageFont
+try:
+    from PIL import Image, ImageDraw, ImageFont
+except ImportError as e:
+    print(f"Error importing PIL: {e}")
+    # Try to import individual modules
+    import PIL.Image as Image
+    import PIL.ImageDraw as ImageDraw
+    import PIL.ImageFont as ImageFont
 import numpy as np
 import textwrap
 import os
