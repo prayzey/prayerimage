@@ -6,14 +6,21 @@ import re
 from datetime import datetime
 
 def create_gradient_background(width, height):
-    x = np.linspace(0, 1, width)
-    y = np.linspace(0, 1, height)
+    # Reduce size for faster processing, then scale up
+    scale_factor = 2
+    small_width = width // scale_factor
+    small_height = height // scale_factor
+    
+    x = np.linspace(0, 1, small_width)
+    y = np.linspace(0, 1, small_height)
     X, Y = np.meshgrid(x, y)
     gradient = ((1 - (X + Y) / 2) * 0.6)
-    rgb_array = np.zeros((height, width, 3))
+    rgb_array = np.zeros((small_height, small_width, 3))
     rgb_array[..., 0] = gradient * 180
     gradient_img = Image.fromarray(np.uint8(rgb_array))
-    return gradient_img
+    
+    # Scale back up with BILINEAR resampling (faster than LANCZOS)
+    return gradient_img.resize((width, height), Image.Resampling.BILINEAR)
 
 def measure_text_height(text, font, max_width, draw, line_spacing_factor=0.2):
     lines = []
@@ -146,7 +153,7 @@ def parse_scripture_reference(text):
         return match.group(0)
     return None
 
-def split_long_text(text, max_chars=400, min_remaining_words=15):
+def split_long_text(text, max_chars=200, min_remaining_words=8):
     """Split text into multiple parts if it exceeds max_chars while keeping sentences and phrases intact.
     
     Args:
@@ -485,7 +492,8 @@ def create_prayer_image(text, date_text="", output_filename="prayer.png", width=
 
             y_cursor += (bbox_line[3] - bbox_line[1]) + line_spacing
 
-        img.save(current_filename, "PNG")
+        # Save with reduced quality for faster processing
+        img.save(current_filename, "PNG", optimize=True, quality=85)
         generated_files.append(current_filename)
         print(f"Image saved as {current_filename}")
     
