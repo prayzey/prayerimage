@@ -6,23 +6,16 @@ import re
 from datetime import datetime
 
 def create_gradient_background(width, height):
-    # Reduce size for faster processing, then scale up
-    scale_factor = 2
-    small_width = width // scale_factor
-    small_height = height // scale_factor
-    
-    x = np.linspace(0, 1, small_width)
-    y = np.linspace(0, 1, small_height)
+    x = np.linspace(0, 1, width)
+    y = np.linspace(0, 1, height)
     X, Y = np.meshgrid(x, y)
     gradient = ((1 - (X + Y) / 2) * 0.6)
-    rgb_array = np.zeros((small_height, small_width, 3))
+    rgb_array = np.zeros((height, width, 3))
     rgb_array[..., 0] = gradient * 180
     gradient_img = Image.fromarray(np.uint8(rgb_array))
-    
-    # Scale back up with BILINEAR resampling (faster than LANCZOS)
-    return gradient_img.resize((width, height), Image.Resampling.BILINEAR)
+    return gradient_img
 
-def measure_text_height(text, font, max_width, draw, line_spacing_factor=0.2):
+def measure_text_height(text, font, max_width, draw, line_spacing_factor=0.1):
     lines = []
     current_line = []
     words = text.split()
@@ -46,11 +39,8 @@ def measure_text_height(text, font, max_width, draw, line_spacing_factor=0.2):
             return parts
         else:
             # For other long words, split at reasonable length
-            max_chunk = 20  # Increased maximum characters per chunk
-            # Only split if word is longer than max_chunk
-            if len(word) > max_chunk:
-                return [word[i:i+max_chunk] for i in range(0, len(word), max_chunk)]
-            return [word]
+            max_chunk = 15  # Maximum characters per chunk
+            return [word[i:i+max_chunk] for i in range(0, len(word), max_chunk)]
 
     # Build lines word by word
     for word in words:
@@ -97,20 +87,12 @@ def measure_text_height(text, font, max_width, draw, line_spacing_factor=0.2):
         bbox = draw.textbbox((0, 0), line, font=font)
         line_heights.append(bbox[3] - bbox[1])
 
-    # Calculate line spacing based on text length
-    word_count = len(text.split())
-    if word_count > 30:
-        line_spacing_factor = 0.15  # Tighter spacing for long text
-    elif word_count > 15:
-        line_spacing_factor = 0.2   # Medium spacing
-    else:
-        line_spacing_factor = 0.3   # More spacing for short text
-    
+    # Add a bit of spacing between lines
     line_spacing = int(font.size * line_spacing_factor)
     total_height = sum(line_heights) + line_spacing * (len(lines) - 1)
     return total_height, lines
 
-def get_font_size_that_fits(text, max_width, max_height, font_path=None, max_size=300, min_size=40):
+def get_font_size_that_fits(text, max_width, max_height, font_path=None, max_size=300, min_size=80):
     temp_img = Image.new('RGB', (1, 1))
     draw = ImageDraw.Draw(temp_img)
 
@@ -153,7 +135,7 @@ def parse_scripture_reference(text):
         return match.group(0)
     return None
 
-def split_long_text(text, max_chars=200, min_remaining_words=8):
+def split_long_text(text, max_chars=270, min_remaining_words=10):
     """Split text into multiple parts if it exceeds max_chars while keeping sentences and phrases intact.
     
     Args:
@@ -299,45 +281,23 @@ def create_prayer_image(text, date_text="", output_filename="prayer.png", width=
     text_parts = split_long_text(text)
     generated_files = []
     
-    # Use smaller margins for better space utilization
-    margin_x = width * 0.03  # 3% margin
-    margin_y = height * 0.03  # 3% margin
+    # Pre-calculate the smallest font size needed for all parts
+    # Reduce margins to use more screen space
+    margin_x = width * 0.05  # 5% margin for more space
+    margin_y = height * 0.05  # 5% margin for more space
     max_width_area = width - 2 * margin_x
     max_height_area = height - 2 * margin_y
     
-    # Optimize image size for Vercel
-    if os.environ.get('VERCEL') == '1' or '/var/task' in os.getcwd():
-        width = min(width, 1920)  # Cap width at 1920px
-        height = min(height, 1080)  # Cap height at 1080px
-    
-    # Calculate optimal font size based on text length and environment
+    # Calculate optimal font size based on text length
     def calculate_initial_font_size(text_length):
-        # Check if we're in Vercel environment
-        is_vercel = os.environ.get('VERCEL') == '1' or '/var/task' in os.getcwd()
-        
-        # Count number of words to better estimate needed size
-        word_count = len(text.split())
-        
-        if is_vercel:
-            # Adjusted sizes for Vercel's default font
-            if word_count < 5:
-                return 300  # Very short text (few words)
-            elif word_count < 15:
-                return 200  # Short text
-            elif word_count < 30:
-                return 150  # Medium text
-            else:
-                return 100  # Long text
+        if text_length < 100:
+            return 120  # Very short text
+        elif text_length < 200:
+            return 100
+        elif text_length < 300:
+            return 80
         else:
-            # Local environment sizes
-            if word_count < 5:
-                return 120
-            elif word_count < 15:
-                return 100
-            elif word_count < 30:
-                return 80
-            else:
-                return 60
+            return 60
     
     # Find the optimal font size that works for all parts
     min_main_font_size = float('inf')
@@ -492,8 +452,7 @@ def create_prayer_image(text, date_text="", output_filename="prayer.png", width=
 
             y_cursor += (bbox_line[3] - bbox_line[1]) + line_spacing
 
-        # Save with reduced quality for faster processing
-        img.save(current_filename, "PNG", optimize=True, quality=85)
+        img.save(current_filename, "PNG")
         generated_files.append(current_filename)
         print(f"Image saved as {current_filename}")
     
