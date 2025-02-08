@@ -146,7 +146,7 @@ def parse_scripture_reference(text):
         return match.group(0)
     return None
 
-def split_long_text(text, max_chars=270, min_remaining_words=10):
+def split_long_text(text, max_chars=400, min_remaining_words=15):
     """Split text into multiple parts if it exceeds max_chars while keeping sentences and phrases intact.
     
     Args:
@@ -292,18 +292,16 @@ def create_prayer_image(text, date_text="", output_filename="prayer.png", width=
     text_parts = split_long_text(text)
     generated_files = []
     
-    # Pre-calculate the smallest font size needed for all parts
-    # Reduce margins to use more screen space
-    # Adjust margins based on text length
-    text_length = len(text)
-    if text_length > 500:
-        margin_x = width * 0.03  # 3% margin for very long text
-        margin_y = height * 0.03
-    else:
-        margin_x = width * 0.05  # 5% margin for normal text
-        margin_y = height * 0.05
+    # Use smaller margins for better space utilization
+    margin_x = width * 0.03  # 3% margin
+    margin_y = height * 0.03  # 3% margin
     max_width_area = width - 2 * margin_x
     max_height_area = height - 2 * margin_y
+    
+    # Optimize image size for Vercel
+    if os.environ.get('VERCEL') == '1' or '/var/task' in os.getcwd():
+        width = min(width, 1920)  # Cap width at 1920px
+        height = min(height, 1080)  # Cap height at 1080px
     
     # Calculate optimal font size based on text length and environment
     def calculate_initial_font_size(text_length):
