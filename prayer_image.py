@@ -22,16 +22,64 @@ def measure_text_height(text, font, max_width, draw, line_spacing_factor=0.1):
     current_line = []
     words = text.split()
 
+    def split_long_word(word):
+        # Special handling for email addresses and long words
+        if '@' in word:
+            # Split email at @ and . characters
+            parts = []
+            current = ''
+            for char in word:
+                if char in ['@', '.']:
+                    if current:
+                        parts.append(current)
+                    parts.append(char)
+                    current = ''
+                else:
+                    current += char
+            if current:
+                parts.append(current)
+            return parts
+        else:
+            # For other long words, split at reasonable length
+            max_chunk = 15  # Maximum characters per chunk
+            return [word[i:i+max_chunk] for i in range(0, len(word), max_chunk)]
+
     # Build lines word by word
     for word in words:
+        # Try adding the word to current line
         test_line = " ".join(current_line + [word])
         bbox = draw.textbbox((0, 0), test_line, font=font)
         line_width = bbox[2] - bbox[0]
+        
         if line_width <= max_width:
             current_line.append(word)
         else:
-            lines.append(" ".join(current_line))
-            current_line = [word]
+            # If the word alone is too wide, split it
+            if not current_line:
+                word_bbox = draw.textbbox((0, 0), word, font=font)
+                if word_bbox[2] - word_bbox[0] > max_width:
+                    word_parts = split_long_word(word)
+                    current_part = ''
+                    
+                    for part in word_parts:
+                        test_part = current_part + part if current_part else part
+                        part_bbox = draw.textbbox((0, 0), test_part, font=font)
+                        
+                        if part_bbox[2] - part_bbox[0] <= max_width:
+                            current_part = test_part
+                        else:
+                            if current_part:
+                                lines.append(current_part)
+                            current_part = part
+                    
+                    if current_part:
+                        current_line = [current_part]
+                else:
+                    current_line = [word]
+            else:
+                lines.append(" ".join(current_line))
+                current_line = [word]
+    
     if current_line:
         lines.append(" ".join(current_line))
 
@@ -82,97 +130,297 @@ def parse_prayer_number(text):
     return None
 
 def parse_scripture_reference(text):
-    pattern = r'[1-3]?\s?[A-Z][a-z]+\.\s?\d+:\d+(?:-\d+)?'
+    # More comprehensive pattern to match various book abbreviations
+    pattern = r'(?:[1-3]\s?)?[A-Z][a-z]*\.\s?\d+:\d+(?:-\d+)?'
     match = re.search(pattern, text)
     if match:
         return match.group(0)
     return None
 
-def create_prayer_image(text, date_text="", output_filename="prayer.png", width=1920, height=1080):
-    prayer_num = parse_prayer_number(text)
-    if prayer_num:
-        pattern_prayer = re.compile(r'(?i)\bprayer\s+' + re.escape(prayer_num) + r'\b')
-        text = pattern_prayer.sub('', text, count=1).strip()
-
+def split_long_text(text, max_chars=270):
+    """Split text into multiple parts if it exceeds max_chars while keeping sentences and phrases intact."""
+    # If text is short enough, return as single part
+    if len(text) <= max_chars:
+        return [text]
+    
+    # First, identify scripture references
     scripture_ref = parse_scripture_reference(text)
-    if scripture_ref:
-        text = re.sub(re.escape(scripture_ref), '', text, count=1).strip()
+    
+    # Split text into sentences while preserving scripture references
+    parts = []
+    current_part = ""
+    words = text.split()
+    i = 0
+    
+    while i < len(words):
+        word = words[i]
+        test_part = current_part + (" " if current_part else "") + word
+        
+        # Check if this word starts a scripture reference
+        if scripture_ref and text[text.find(word):].startswith(scripture_ref):
+            # Add the entire reference as one unit
+            ref_words = scripture_ref.split()
+            test_part = current_part + (" " if current_part else "") + scripture_ref
+            if len(test_part) <= max_chars:
+                current_part = test_part
+            else:
+                if current_part:
+                    parts.append(current_part)
+                current_part = scripture_ref
+            i += len(ref_words)
+            continue
+        
+        # Normal word processing
+        if len(test_part) <= max_chars:
+            current_part = test_part
+        else:
+            if current_part:
+                parts.append(current_part)
+            current_part = word
+        
+        # Check for sentence endings (but not in scripture references)
+        if word.endswith(('.', '!', '?')) and (not scripture_ref or word not in scripture_ref):
+            if current_part:
+                parts.append(current_part)
+                current_part = ""
+        
+        i += 1
+    
+    if current_part:  # Add any remaining text
+        parts.append(current_part)
+    
+    return parts
+    
+    return parts
 
-    text = re.sub(r'^[;:]\s*', '', text)
+def add_logo(img, logo_path, target_width=100):  # Reduced from 150px to 100px for smaller logo
+    try:
+        # Open and convert logo to RGBA to preserve transparency
+        logo = Image.open(logo_path).convert('RGBA')
+        
+        # Calculate height while maintaining aspect ratio
+        aspect_ratio = logo.height / logo.width
+        target_height = int(target_width * aspect_ratio)
+        
+        # Resize logo
+        logo = logo.resize((target_width, target_height), Image.Resampling.LANCZOS)
+        
+        # Calculate position (top left with padding)
+        padding = 20
+        position = (padding, padding)
+        
+        # Create a new image with the same size as background for compositing
+        logo_layer = Image.new('RGBA', img.size, (0, 0, 0, 0))
+        logo_layer.paste(logo, position, logo)
+        
+        # Composite the images
+        return Image.alpha_composite(img.convert('RGBA'), logo_layer)
+    except Exception as e:
+        print(f"Error adding logo: {e}")
+        return img
 
-    header_parts = []
-    if prayer_num:
-        header_parts.append(f"PRAYER {prayer_num}")
-    if scripture_ref:
-        header_parts.append(scripture_ref.upper())
-    header_text = " | ".join(header_parts)
-
-    img = create_gradient_background(width, height)
-    draw = ImageDraw.Draw(img)
-
-    margin_x = width * 0.04
-    margin_y = height * 0.04
+def create_prayer_image(text, date_text="", output_filename="prayer.png", width=1920, height=1080):
+    # Function to draw text with proper word wrapping
+    def draw_wrapped_text(draw, text, font, max_width):
+        words = text.split()
+        lines = []
+        current_line = []
+        
+        for word in words:
+            # Handle long words (like email addresses)
+            if '@' in word:
+                parts = word.replace('@', ' @ ').replace('.', ' . ').split()
+                current_line.extend(parts)
+            else:
+                current_line.append(word)
+            
+            # Check if current line fits
+            test_line = ' '.join(current_line)
+            bbox = draw.textbbox((0, 0), test_line, font=font)
+            if bbox[2] - bbox[0] > max_width:
+                if len(current_line) > 1:
+                    lines.append(' '.join(current_line[:-1]))
+                    current_line = current_line[-1:]
+                else:
+                    # Handle very long words
+                    word = current_line[0]
+                    while word:
+                        for i in range(len(word), 0, -1):
+                            part = word[:i]
+                            bbox = draw.textbbox((0, 0), part, font=font)
+                            if bbox[2] - bbox[0] <= max_width:
+                                lines.append(part)
+                                word = word[i:]
+                                break
+                        if i == 1:  # Prevent infinite loop
+                            lines.append(word)
+                            word = ''
+                    current_line = []
+        
+        if current_line:
+            lines.append(' '.join(current_line))
+        
+        return lines
+    # Split text into parts if too long
+    base_name, ext = os.path.splitext(output_filename)
+    text_parts = split_long_text(text)
+    generated_files = []
+    
+    # Pre-calculate the smallest font size needed for all parts
+    # Reduce margins to use more screen space
+    margin_x = width * 0.05  # Reduced from 0.08
+    margin_y = height * 0.05  # Reduced from 0.08
     max_width_area = width - 2 * margin_x
     max_height_area = height - 2 * margin_y
-
-    title_font_size = 0
-    if header_text:
-        title_font_size = get_font_size_that_fits(
-            header_text,
-            max_width_area * 0.9,
-            margin_y * 3,
-            max_size=200
+    
+    # Calculate optimal font size based on text length
+    def calculate_initial_font_size(text_length):
+        if text_length < 100:
+            return 1000  # Very short text can be very large
+        elif text_length < 200:
+            return 800
+        elif text_length < 300:
+            return 600
+        else:
+            return 400
+    
+    # Find the optimal font size that works for all parts
+    min_main_font_size = float('inf')
+    for part in text_parts:
+        main_text = part.upper()
+        initial_size = calculate_initial_font_size(len(main_text))
+        font_size = get_font_size_that_fits(
+            main_text,
+            max_width_area * 0.95,  # Increased from 0.9
+            max_height_area - (margin_y * 2),  # Reduced from 3
+            max_size=initial_size
         )
+        min_main_font_size = min(min_main_font_size, font_size)
+    
+    for i, part in enumerate(text_parts):
+        # Create filename for each part
+        if len(text_parts) > 1:
+            # Ensure we have .png extension
+            base_without_ext = base_name.replace('.png', '')
+            current_filename = f"{base_without_ext}_{i+1}.png"
+        else:
+            # Make sure single file has .png extension
+            current_filename = output_filename if output_filename.endswith('.png') else output_filename + '.png'
+        
+        # Extract prayer number and scripture reference
+        prayer_num = parse_prayer_number(part)
+        if prayer_num:
+            pattern_prayer = re.compile(r'(?i)\bprayer\s+' + re.escape(prayer_num) + r'\b')
+            part = pattern_prayer.sub('', part, count=1).strip()
 
-    main_text = text.upper()
+        scripture_ref = parse_scripture_reference(part)
+        if scripture_ref:
+            part = re.sub(re.escape(scripture_ref), '', part, count=1).strip()
 
-    main_font_size = get_font_size_that_fits(
-        main_text,
-        max_width_area * 0.9,
-        max_height_area - (margin_y * 3) if header_text else max_height_area,
-        max_size=1000
-    )
+        part = re.sub(r'^[;:]\s*', '', part)
 
-    try:
-        title_font = ImageFont.truetype("Arial Bold", title_font_size) if title_font_size > 0 else None
-        main_font = ImageFont.truetype("Arial Bold", main_font_size)
-    except:
-        title_font = main_font = ImageFont.load_default()
+        header_parts = []
+        if prayer_num:
+            header_parts.append(f"PRAYER {prayer_num}")
+        if scripture_ref:
+            header_parts.append(scripture_ref.upper())
+        header_text = " | ".join(header_parts)
 
-    y_cursor = margin_y
+        # Create the image for this part
+        img = create_gradient_background(width, height)
+        
+        # Add logo
+        logo_path = os.path.join('static', 'logos', 'WIN LOGO.png')
+        img = add_logo(img, logo_path)
+        
+        draw = ImageDraw.Draw(img)
 
-    if header_text and title_font:
-        bbox_title = draw.textbbox((0, 0), header_text, font=title_font)
-        header_width = bbox_title[2] - bbox_title[0]
-        x_header = (width - header_width) / 2
+        margin_x = width * 0.05  # Reduced margin for more space
+        margin_y = height * 0.05
+        max_width_area = width - 2 * margin_x
+        max_height_area = height - 2 * margin_y
 
-        for offset in range(1, 3):
-            draw.text((x_header + offset, y_cursor + offset), header_text, font=title_font, fill=(0, 0, 0))
-        draw.text((x_header, y_cursor), header_text, font=title_font, fill="white")
-        y_cursor += (bbox_title[3] - bbox_title[1]) + (title_font_size * 0.2)
+        title_font_size = 0
+        if header_text:
+            title_font_size = get_font_size_that_fits(
+                header_text,
+                max_width_area * 0.9,
+                margin_y * 3,
+                max_size=200
+            )
 
-    temp_img = Image.new('RGB', (1, 1))
-    temp_draw = ImageDraw.Draw(temp_img)
-    text_height, lines = measure_text_height(main_text, main_font, max_width_area, temp_draw, 0.1)
+        main_text = part.upper()
 
-    remaining_height = height - y_cursor - margin_y
-    y_cursor += max(0, (remaining_height - text_height) / 2)
+        # Use the pre-calculated font size
+        main_font_size = min_main_font_size
 
-    line_spacing = int(main_font.size * 0.1)
+        try:
+            title_font = ImageFont.truetype("Arial Bold", title_font_size) if title_font_size > 0 else None
+            main_font = ImageFont.truetype("Arial Bold", main_font_size)
+        except:
+            title_font = main_font = ImageFont.load_default()
 
-    for line in lines:
-        bbox_line = draw.textbbox((0, 0), line, font=main_font)
-        line_width = bbox_line[2] - bbox_line[0]
-        x_line = (width - line_width) / 2
+        y_cursor = margin_y
 
-        for offset in range(1, 3):
-            draw.text((x_line + offset, y_cursor + offset), line, font=main_font, fill=(0, 0, 0))
-        draw.text((x_line, y_cursor), line, font=main_font, fill="white")
+        if header_text and title_font:
+            bbox_title = draw.textbbox((0, 0), header_text, font=title_font)
+            header_width = bbox_title[2] - bbox_title[0]
+            x_header = (width - header_width) / 2
 
-        y_cursor += (bbox_line[3] - bbox_line[1]) + line_spacing
+            for offset in range(1, 3):
+                draw.text((x_header + offset, y_cursor + offset), header_text, font=title_font, fill=(0, 0, 0))
+            draw.text((x_header, y_cursor), header_text, font=title_font, fill="white")
+            y_cursor += (bbox_title[3] - bbox_title[1]) + (title_font_size * 0.2)
 
-    img.save(output_filename, "PNG")
-    print(f"Image saved as {output_filename}")
+        # Split long words (like email addresses) into parts
+        words = main_text.split()
+        processed_words = []
+        for word in words:
+            if '@' in word:
+                # Split email address at @ and . while keeping the symbols
+                parts = []
+                current = ''
+                for char in word:
+                    if char in ['@', '.']:
+                        if current:
+                            parts.append(current)
+                        parts.append(char)
+                        current = ''
+                    else:
+                        current += char
+                if current:
+                    parts.append(current)
+                processed_words.extend(parts)
+            else:
+                processed_words.append(word)
+        
+        # Rejoin with spaces and measure
+        main_text = ' '.join(processed_words)
+        temp_img = Image.new('RGB', (1, 1))
+        temp_draw = ImageDraw.Draw(temp_img)
+        text_height, lines = measure_text_height(main_text, main_font, max_width_area, temp_draw, 0.2)
+
+        remaining_height = height - y_cursor - margin_y
+        y_cursor += max(0, (remaining_height - text_height) / 2)
+
+        line_spacing = int(main_font.size * 0.2)  # Increased line spacing
+
+        for line in lines:
+            bbox_line = draw.textbbox((0, 0), line, font=main_font)
+            line_width = bbox_line[2] - bbox_line[0]
+            x_line = (width - line_width) / 2
+
+            for offset in range(1, 3):
+                draw.text((x_line + offset, y_cursor + offset), line, font=main_font, fill=(0, 0, 0))
+            draw.text((x_line, y_cursor), line, font=main_font, fill="white")
+
+            y_cursor += (bbox_line[3] - bbox_line[1]) + line_spacing
+
+        img.save(current_filename, "PNG")
+        generated_files.append(current_filename)
+        print(f"Image saved as {current_filename}")
+    
+    return generated_files
 
 class PrayerImageApp:
     def __init__(self, root):
