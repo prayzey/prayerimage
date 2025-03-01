@@ -139,18 +139,44 @@ def split_long_text(text, max_chars=350, min_remaining_words=10):
     if len(text) <= max_chars:
         return [text]
     
-    # Check if text contains paragraph breaks (double newlines)
-    if "\n\n" in text:
-        paragraphs = text.split("\n\n")
-        # Process each paragraph separately
+    # Always respect line breaks in the input text
+    # Split on any newline, treating each line as a potential paragraph
+    lines = text.split('\n')
+    
+    # Group adjacent non-empty lines
+    paragraphs = []
+    current_paragraph = ""
+    
+    for line in lines:
+        line = line.strip()
+        if line:
+            if current_paragraph:
+                current_paragraph += " " + line
+            else:
+                current_paragraph = line
+        else:
+            # Empty line marks a paragraph break
+            if current_paragraph:
+                paragraphs.append(current_paragraph)
+                current_paragraph = ""
+    
+    # Add the last paragraph if there is one
+    if current_paragraph:
+        paragraphs.append(current_paragraph)
+    
+    # If we have multiple paragraphs, process each separately
+    if len(paragraphs) > 1:
         result = []
         for paragraph in paragraphs:
-            paragraph = paragraph.strip()
-            if paragraph:
+            # Only recursively process if the paragraph is long
+            if len(paragraph) > max_chars:
                 result.extend(split_long_text(paragraph, max_chars, min_remaining_words))
+            else:
+                result.append(paragraph)
         return result
     
-    # Split text into sentences
+    # If we reach here, we're processing a single paragraph
+    # Fallback to the sentence-based splitting logic
     parts = []
     current_part = ""
     words = text.split()
