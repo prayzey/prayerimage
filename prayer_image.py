@@ -127,14 +127,6 @@ def parse_prayer_number(text):
         return match.group(1)
     return None
 
-def parse_scripture_reference(text):
-    # More comprehensive pattern to match various book abbreviations
-    pattern = r'(?:[1-3]\s?)?[A-Z][a-z]*\.\s?\d+:\d+(?:-\d+)?'
-    match = re.search(pattern, text)
-    if match:
-        return match.group(0)
-    return None
-
 def split_long_text(text, max_chars=270, min_remaining_words=10):
     """Split text into multiple parts if it exceeds max_chars while keeping sentences and phrases intact.
     
@@ -147,19 +139,11 @@ def split_long_text(text, max_chars=270, min_remaining_words=10):
     if len(text) <= max_chars:
         return [text]
     
-    # First, identify scripture references
-    scripture_ref = parse_scripture_reference(text)
-    
-    # Split text into sentences while preserving scripture references
+    # Split text into sentences
     parts = []
     current_part = ""
     words = text.split()
     i = 0
-    
-    # If there's a scripture reference at the start, handle it first
-    if scripture_ref and text.startswith(scripture_ref):
-        current_part = scripture_ref
-        i = len(scripture_ref.split())
     
     while i < len(words):
         word = words[i]
@@ -184,10 +168,20 @@ def split_long_text(text, max_chars=270, min_remaining_words=10):
                 current_part = test_full_part
                 break
         
-        # Check for sentence endings (but not in scripture references)
-        if word.endswith(('.', '!', '?')) and (not scripture_ref or word not in scripture_ref):
-            # Only split on sentence end if we have enough words remaining
-            if remaining_words > min_remaining_words:
+        # Check for sentence endings but avoid splitting scripture references
+        if word.endswith(('.', '!', '?')):
+            # Check if this is likely a scripture reference abbreviation (like IS., Hag., etc.)
+            is_likely_scripture_abbr = False
+            
+            # Common patterns for scripture abbreviations
+            if word.endswith('.') and len(word) <= 5 and i < len(words) - 1:
+                next_word = words[i + 1]
+                # Check if next word looks like a chapter:verse reference (e.g., "2:34")
+                if re.match(r'\d+:\d+', next_word):
+                    is_likely_scripture_abbr = True
+            
+            # Only split on sentence end if we have enough words remaining AND it's not a scripture reference
+            if remaining_words > min_remaining_words and not is_likely_scripture_abbr:
                 if current_part:
                     parts.append(current_part)
                     current_part = ""
@@ -196,8 +190,6 @@ def split_long_text(text, max_chars=270, min_remaining_words=10):
     
     if current_part:  # Add any remaining text
         parts.append(current_part)
-    
-    return parts
     
     return parts
 
@@ -328,18 +320,13 @@ def create_prayer_image(text, date_text="", output_filename="prayer.png", width=
             pattern_prayer = re.compile(r'(?i)\bprayer\s+' + re.escape(prayer_num) + r'\b')
             part = pattern_prayer.sub('', part, count=1).strip()
 
-        scripture_ref = parse_scripture_reference(part)
-        if scripture_ref:
-            part = re.sub(re.escape(scripture_ref), '', part, count=1).strip()
+        # Remove scripture reference detection since we're not using it
+        # scripture_ref = parse_scripture_reference(part)
 
         part = re.sub(r'^[;:]\s*', '', part)
 
-        header_parts = []
-        if prayer_num:
-            header_parts.append(f"PRAYER {prayer_num}")
-        if scripture_ref:
-            header_parts.append(scripture_ref.upper())
-        header_text = " | ".join(header_parts)
+        # Remove header parts completely - don't create separate header text
+        header_text = ""
 
         # Create the image for this part
         img = create_gradient_background(width, height)
@@ -355,14 +342,8 @@ def create_prayer_image(text, date_text="", output_filename="prayer.png", width=
         max_width_area = width - 2 * margin_x
         max_height_area = height - 2 * margin_y
 
+        # Set title font size to 0 since we're not using headers
         title_font_size = 0
-        if header_text:
-            title_font_size = get_font_size_that_fits(
-                header_text,
-                max_width_area * 0.9,
-                margin_y * 3,
-                max_size=200
-            )
 
         main_text = part.upper()
 
@@ -397,16 +378,6 @@ def create_prayer_image(text, date_text="", output_filename="prayer.png", width=
             title_font = main_font = ImageFont.load_default()
 
         y_cursor = margin_y
-
-        if header_text and title_font:
-            bbox_title = draw.textbbox((0, 0), header_text, font=title_font)
-            header_width = bbox_title[2] - bbox_title[0]
-            x_header = (width - header_width) / 2
-
-            for offset in range(1, 3):
-                draw.text((x_header + offset, y_cursor + offset), header_text, font=title_font, fill=(0, 0, 0))
-            draw.text((x_header, y_cursor), header_text, font=title_font, fill="white")
-            y_cursor += (bbox_title[3] - bbox_title[1]) + (title_font_size * 0.2)
 
         # Split long words (like email addresses) into parts
         words = main_text.split()
