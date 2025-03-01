@@ -8,7 +8,7 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
-<body class="bg-gray-100 min-h-screen">
+<body class="min-h-screen bg-cover bg-center bg-fixed" style="background-image: url('https://res.cloudinary.com/dh5ugs2aa/image/upload/v1740706429/0B2A1150_dwxg4m.jpg');">
     <!-- Header with Logo -->
     <header class="bg-white shadow-md">
         <div class="container mx-auto px-4 py-4 flex items-center justify-center relative">
@@ -56,26 +56,70 @@
         .website-icon {
             color: #2196F3 !important;
         }
+        
+        /* Glassmorphism styles */
+        .glass-container {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.15);
+        }
+        
+        /* Ensure text visibility */
+        .visible-text {
+            color: #fff;
+            font-weight: 600;
+            text-shadow: 0px 1px 2px rgba(0, 0, 0, 0.2);
+            font-size: 1.5rem;
+        }
+        
+        /* Style for text area */
+        .glass-textarea {
+            background: rgba(255, 255, 255, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            color: #333;
+            font-weight: 500;
+            font-size: 1.25rem;
+        }
+        
+        /* Style for buttons */
+        .glass-btn {
+            background: rgba(59, 130, 246, 0.8);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            color: white;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .glass-btn:hover {
+            background: rgba(37, 99, 235, 0.9);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+            transform: translateY(-2px);
+        }
     </style>
 
-    <div class="container mx-auto px-4 py-8">
-        <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-8">  <!-- Increased max-width and padding -->
-            <div class="mb-6">  <!-- Increased margin -->
-                <p class="text-gray-600 mb-3 text-lg">Enter your prayers or announcements below.</p>
+    <div class="container mx-auto px-4 py-12">
+        <div class="max-w-4xl mx-auto glass-container rounded-xl p-8">
+            <div class="mb-6">
+                <p class="visible-text mb-4">Enter your prayers or announcements below.</p>
                 <textarea id="prayerText" 
-                    class="w-full h-96 p-4 border rounded-lg resize-vertical focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg" 
+                    class="w-full h-96 p-4 glass-textarea rounded-lg resize-vertical focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-inner" 
                     placeholder="Enter your prayer text here..."
-                    style="min-height: 24rem;"></textarea>  <!-- Made taller and resizable vertically -->
+                    style="min-height: 24rem;"></textarea>
             </div>
             <div class="flex justify-center">
-                <button onclick="generateImage()" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                <button onclick="generateImage()" class="glass-btn py-3 px-6 rounded-lg focus:outline-none focus:shadow-outline text-lg">
                     Generate Image
                 </button>
             </div>
-            <div id="status" class="mt-4 text-center text-gray-600"></div>
-            <div id="imageContainer" class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            <div id="status" class="mt-6 text-center visible-text"></div>
+            <div id="imageContainer" class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6"></div>
         </div>
-    </main>
+    </div>
 
     <script>
         async function downloadAllImages() {
@@ -154,7 +198,7 @@
                 // Create and append images
                 allImageData.forEach((base64Data, index) => {
                     const imgContainer = document.createElement('div');
-                    imgContainer.className = 'relative';
+                    imgContainer.className = 'relative glass-container p-3 rounded-lg overflow-hidden';
                     
                     const img = document.createElement('img');
                     img.src = `data:image/png;base64,${base64Data}`;
@@ -163,7 +207,7 @@
 
                     // Add download button for each image
                     const downloadBtn = document.createElement('button');
-                    downloadBtn.className = 'absolute top-2 right-2 bg-white rounded-full p-2 shadow-md hover:bg-gray-100';
+                    downloadBtn.className = 'absolute top-4 right-4 glass-btn rounded-full p-3 shadow-md hover:bg-blue-700 transition-all';
                     downloadBtn.innerHTML = '<i class="fas fa-download"></i>';
                     downloadBtn.onclick = () => {
                         const a = document.createElement('a');
@@ -181,7 +225,7 @@
                 if (allImageData.length > 0) {
                     status.innerHTML = `
                         Generated ${allImageData.length} image${allImageData.length > 1 ? 's' : ''}! 
-                        <button onclick="downloadAllImages()" class="ml-2 bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-sm">
+                        <button onclick="downloadAllImages()" class="ml-2 glass-btn py-2 px-4 rounded-lg text-white">
                             Download All
                         </button>
                     `;
