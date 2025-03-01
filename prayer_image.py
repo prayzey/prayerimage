@@ -139,109 +139,99 @@ def split_long_text(text, max_chars=350, min_remaining_words=10):
     if len(text) <= max_chars:
         return [text]
     
-    # Always respect line breaks in the input text
-    # Split on any newline, treating each line as a potential paragraph
-    lines = text.split('\n')
+    # Normalize line breaks for consistent handling across environments
+    # Replace various newline formats with a standard one
+    normalized_text = text.replace('\r\n', '\n').replace('\r', '\n')
     
-    # Group adjacent non-empty lines
+    # Split on newlines - this is the most reliable separator across environments
+    lines = normalized_text.split('\n')
+    
+    # Process each line to determine what's a paragraph
     paragraphs = []
     current_paragraph = ""
     
     for line in lines:
-        line = line.strip()
-        if line:
-            if current_paragraph:
-                current_paragraph += " " + line
-            else:
-                current_paragraph = line
-        else:
-            # Empty line marks a paragraph break
+        stripped_line = line.strip()
+        # Empty lines always mark paragraph breaks
+        if not stripped_line:
             if current_paragraph:
                 paragraphs.append(current_paragraph)
                 current_paragraph = ""
+        else:
+            # Non-empty line gets added to current paragraph
+            if current_paragraph:
+                current_paragraph += " " + stripped_line
+            else:
+                current_paragraph = stripped_line
     
-    # Add the last paragraph if there is one
+    # Don't forget the last paragraph
     if current_paragraph:
         paragraphs.append(current_paragraph)
     
-    # If we have multiple paragraphs, process each separately
+    # Always split at paragraph boundaries - this ensures different
+    # prayers/verses stay separate
     if len(paragraphs) > 1:
-        result = []
-        for paragraph in paragraphs:
-            # Only recursively process if the paragraph is long
-            if len(paragraph) > max_chars:
-                result.extend(split_long_text(paragraph, max_chars, min_remaining_words))
+        return paragraphs
+    
+    # If we have only one paragraph but it's too long, apply sentence-based splitting
+    if len(paragraphs) == 1 and len(paragraphs[0]) > max_chars:
+        parts = []
+        current_part = ""
+        words = paragraphs[0].split()
+        i = 0
+        
+        # Try to identify scripture verse patterns
+        scripture_verse_pattern = re.compile(r'(?i)(?:[1-3]\s?)?[A-Za-z][A-Za-z]*\.?\s?\d+:\d+')
+        is_scripture_verse = bool(scripture_verse_pattern.search(paragraphs[0]))
+        
+        # If this is a scripture verse, try to keep it together if reasonably sized
+        if is_scripture_verse and len(paragraphs[0]) < max_chars * 1.5:
+            return [paragraphs[0]]
+        
+        while i < len(words):
+            word = words[i]
+            test_part = current_part + (" " if current_part else "") + word
+            
+            # Calculate remaining words
+            remaining_words = len(words) - i - 1
+            
+            # Normal word processing
+            if len(test_part) <= max_chars:
+                current_part = test_part
             else:
-                result.append(paragraph)
-        return result
-    
-    # If we reach here, we're processing a single paragraph
-    # Fallback to the sentence-based splitting logic
-    parts = []
-    current_part = ""
-    words = text.split()
-    i = 0
-    
-    # Try to identify scripture verse patterns
-    scripture_verse_pattern = re.compile(r'(?i)(?:[1-3]\s?)?[A-Za-z][A-Za-z]*\.?\s?\d+:\d+')
-    is_scripture_verse = bool(scripture_verse_pattern.search(text))
-    
-    # If this is a scripture verse, try to keep it together if reasonably sized
-    if is_scripture_verse and len(text) < max_chars * 1.5:
-        return [text]
-    
-    while i < len(words):
-        word = words[i]
-        test_part = current_part + (" " if current_part else "") + word
-        
-        # Calculate remaining words
-        remaining_words = len(words) - i - 1
-        
-        # Normal word processing
-        if len(test_part) <= max_chars:
-            current_part = test_part
-        else:
-            if current_part:
-                parts.append(current_part)
-            current_part = word
-            
-        # If we're near the end, try to keep remaining words together
-        if remaining_words <= min_remaining_words and i == len(words) - remaining_words - 1:
-            remaining_text = " ".join(words[i+1:])
-            test_full_part = current_part + (" " if current_part else "") + remaining_text
-            if len(test_full_part) <= max_chars * 1.5:  # Allow up to 50% longer for final part
-                current_part = test_full_part
-                break
-        
-        # Check for sentence endings but avoid splitting scripture references
-        if word.endswith(('.', '!', '?')):
-            # Check if this is likely a scripture reference abbreviation (like IS., Hag., etc.)
-            is_likely_scripture_abbr = False
-            
-            # Common patterns for scripture abbreviations
-            if word.endswith('.') and len(word) <= 5 and i < len(words) - 1:
-                next_word = words[i + 1]
-                # Check if next word looks like a chapter:verse reference (e.g., "2:34")
-                if re.match(r'\d+:\d+', next_word):
-                    is_likely_scripture_abbr = True
-            
-            # Only split on sentence end if:
-            # 1. We have enough words remaining, AND
-            # 2. It's not a scripture reference, AND
-            # 3. We've accumulated enough text to make a reasonable image
-            if (remaining_words > min_remaining_words and 
-                not is_likely_scripture_abbr and 
-                len(current_part) > max_chars * 0.5):  # Only split if we have substantial text
                 if current_part:
                     parts.append(current_part)
-                    current_part = ""
+                current_part = word
+                
+            # Check for sentence endings but avoid splitting scripture references
+            if word.endswith(('.', '!', '?')):
+                # Check if this is likely a scripture reference abbreviation (like IS., Hag., etc.)
+                is_likely_scripture_abbr = False
+                
+                # Common patterns for scripture abbreviations
+                if word.endswith('.') and len(word) <= 5 and i < len(words) - 1:
+                    next_word = words[i + 1]
+                    # Check if next word looks like a chapter:verse reference (e.g., "2:34")
+                    if re.match(r'\d+:\d+', next_word):
+                        is_likely_scripture_abbr = True
+                
+                # Only split on sentence end if reasonable conditions are met
+                if (remaining_words > min_remaining_words and 
+                    not is_likely_scripture_abbr and 
+                    len(current_part) > max_chars * 0.5):  # Only split if we have substantial text
+                    if current_part:
+                        parts.append(current_part)
+                        current_part = ""
+            
+            i += 1
         
-        i += 1
+        if current_part:  # Add any remaining text
+            parts.append(current_part)
+        
+        return parts
     
-    if current_part:  # Add any remaining text
-        parts.append(current_part)
-    
-    return parts
+    # Return the single paragraph if we reach here
+    return paragraphs
 
 def add_logo(img, logo_path, target_width=100):  # Reduced from 150px to 100px for smaller logo
     try:
