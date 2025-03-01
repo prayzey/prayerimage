@@ -127,7 +127,7 @@ def parse_prayer_number(text):
         return match.group(1)
     return None
 
-def split_long_text(text, max_chars=270, min_remaining_words=10):
+def split_long_text(text, max_chars=350, min_remaining_words=10):
     """Split text into multiple parts if it exceeds max_chars while keeping sentences and phrases intact.
     
     Args:
@@ -139,11 +139,30 @@ def split_long_text(text, max_chars=270, min_remaining_words=10):
     if len(text) <= max_chars:
         return [text]
     
+    # Check if text contains paragraph breaks (double newlines)
+    if "\n\n" in text:
+        paragraphs = text.split("\n\n")
+        # Process each paragraph separately
+        result = []
+        for paragraph in paragraphs:
+            paragraph = paragraph.strip()
+            if paragraph:
+                result.extend(split_long_text(paragraph, max_chars, min_remaining_words))
+        return result
+    
     # Split text into sentences
     parts = []
     current_part = ""
     words = text.split()
     i = 0
+    
+    # Try to identify scripture verse patterns
+    scripture_verse_pattern = re.compile(r'(?i)(?:[1-3]\s?)?[A-Za-z][A-Za-z]*\.?\s?\d+:\d+')
+    is_scripture_verse = bool(scripture_verse_pattern.search(text))
+    
+    # If this is a scripture verse, try to keep it together if reasonably sized
+    if is_scripture_verse and len(text) < max_chars * 1.5:
+        return [text]
     
     while i < len(words):
         word = words[i]
@@ -180,8 +199,13 @@ def split_long_text(text, max_chars=270, min_remaining_words=10):
                 if re.match(r'\d+:\d+', next_word):
                     is_likely_scripture_abbr = True
             
-            # Only split on sentence end if we have enough words remaining AND it's not a scripture reference
-            if remaining_words > min_remaining_words and not is_likely_scripture_abbr:
+            # Only split on sentence end if:
+            # 1. We have enough words remaining, AND
+            # 2. It's not a scripture reference, AND
+            # 3. We've accumulated enough text to make a reasonable image
+            if (remaining_words > min_remaining_words and 
+                not is_likely_scripture_abbr and 
+                len(current_part) > max_chars * 0.5):  # Only split if we have substantial text
                 if current_part:
                     parts.append(current_part)
                     current_part = ""
