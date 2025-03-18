@@ -92,6 +92,20 @@
             }
         }
 
+        // Split prayers into smaller batches to avoid Vercel timeout (10s limit)
+        function splitPrayersIntoBatches(text, maxPrayersPerBatch = 5) {
+            // Split by newlines to get individual prayers
+            const prayers = text.split('\n').filter(prayer => prayer.trim().length > 0);
+            
+            // Group prayers into batches
+            const batches = [];
+            for (let i = 0; i < prayers.length; i += maxPrayersPerBatch) {
+                batches.push(prayers.slice(i, i + maxPrayersPerBatch).join('\n'));
+            }
+            
+            return batches;
+        }
+
         async function generateImage() {
             const text = document.getElementById('prayerText').value;
             const status = document.getElementById('status');
@@ -102,31 +116,43 @@
                 return;
             }
 
-            status.textContent = 'Generating image...';
+            status.textContent = 'Generating images...';
             imageContainer.innerHTML = ''; // Clear previous images
             
             try {
-                const response = await fetch('/generate', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: `text=${encodeURIComponent(text)}`
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const data = await response.json();
+                // Split text into smaller batches to avoid timeout
+                const batches = splitPrayersIntoBatches(text);
+                const allImageData = [];
                 
-                if (data.error) {
-                    status.textContent = `Error: ${data.error}`;
-                    return;
+                // Process each batch
+                for (let i = 0; i < batches.length; i++) {
+                    status.textContent = `Processing batch ${i + 1} of ${batches.length}...`;
+                    
+                    const response = await fetch('/generate', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: `text=${encodeURIComponent(batches[i])}`
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    
+                    if (data.error) {
+                        status.textContent = `Error: ${data.error}`;
+                        return;
+                    }
+                    
+                    // Add images from this batch to our collection
+                    allImageData.push(...data.image_data);
                 }
 
                 // Create and append images
-                data.image_data.forEach((base64Data, index) => {
+                allImageData.forEach((base64Data, index) => {
                     const imgContainer = document.createElement('div');
                     imgContainer.className = 'relative';
                     
@@ -152,9 +178,9 @@
                     imageContainer.appendChild(imgContainer);
                 });
                 
-                if (data.image_data.length > 0) {
+                if (allImageData.length > 0) {
                     status.innerHTML = `
-                        Generated ${data.image_data.length} image${data.image_data.length > 1 ? 's' : ''}! 
+                        Generated ${allImageData.length} image${allImageData.length > 1 ? 's' : ''}! 
                         <button onclick="downloadAllImages()" class="ml-2 bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-sm">
                             Download All
                         </button>
