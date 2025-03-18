@@ -9,6 +9,12 @@ import tempfile
 from datetime import datetime
 import base64
 
+# Add debugging for font file presence
+current_dir = os.path.dirname(os.path.abspath(__file__))
+font_path = os.path.join(current_dir, 'fonts', 'ArialBold.ttf')
+print(f"Looking for font at: {font_path}")
+print(f"Font exists: {os.path.exists(font_path)}")
+
 app = Flask(__name__, static_folder='../static', template_folder='../templates')
 
 # Global error handler

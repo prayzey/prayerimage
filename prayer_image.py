@@ -92,27 +92,39 @@ def measure_text_height(text, font, max_width, draw, line_spacing_factor=0.1):
     total_height = sum(line_heights) + line_spacing * (len(lines) - 1)
     return total_height, lines
 
-def get_font_size_that_fits(text, max_width, max_height, font_path=None, max_size=300, min_size=80):
-    temp_img = Image.new('RGB', (1, 1))
-    draw = ImageDraw.Draw(temp_img)
-
+def get_font_size_that_fits(text, max_width, max_height, max_size=120):
+    # Find a font size that fits within the given width and height
+    start_size = max_size
+    min_size = 20
+    current_size = start_size
+    
+    # Don't let very short text (like "MATT.") use extremely large fonts
+    if len(text) < 20:
+        start_size = min(start_size, 100)
+        
+    # Special case for very short text to use a more reasonable font size
+    if len(text) <= 5:  # For texts like "PS." or "MATT."
+        return 80  # Use a fixed moderate size for very short texts
+    
     best_size = min_size
-    low, high = min_size, max_size
-
+    
+    # Binary search to find the largest font size that fits
+    low = min_size
+    high = start_size
+    
     while low <= high:
         mid = (low + high) // 2
+        
         try:
-            if font_path:
-                font = ImageFont.truetype(font_path, mid)
-            else:
-                try:
-                    font = ImageFont.truetype("Arial Bold", mid)
-                except:
-                    font = ImageFont.truetype("Arial", mid)
+            # Create a temporary font for testing
+            font = ImageFont.truetype("Arial Bold", mid)
         except:
-            font = ImageFont.load_default()
+            try:
+                font = ImageFont.truetype("Arial", mid)
+            except:
+                font = ImageFont.load_default()
 
-        text_height, _ = measure_text_height(text, font, max_width, draw, 0.1)
+        text_height, _ = measure_text_height(text, font, max_width, ImageDraw.Draw(Image.new('RGB', (1, 1))), 0.1)
         if text_height <= max_height:
             best_size = mid
             low = mid + 1
@@ -143,6 +155,10 @@ def split_long_text(text, max_chars=270, min_remaining_words=10):
         max_chars: Maximum characters per part
         min_remaining_words: Minimum number of words required to create a new part
     """
+    # Special case for very short texts (handles "MATT." and "PS." cases)
+    if len(text) <= 20:  # If text is very short, don't split it
+        return [text]
+    
     # If text is short enough, return as single part
     if len(text) <= max_chars:
         return [text]
@@ -185,9 +201,20 @@ def split_long_text(text, max_chars=270, min_remaining_words=10):
                 break
         
         # Check for sentence endings (but not in scripture references)
-        if word.endswith(('.', '!', '?')) and (not scripture_ref or word not in scripture_ref):
-            # Only split on sentence end if we have enough words remaining
-            if remaining_words > min_remaining_words:
+        is_likely_scripture_abbr = False
+        if word.endswith(('.', '!', '?')):
+            # Check if this might be a scripture abbreviation (e.g. "Matt.")
+            if word.endswith('.') and len(word) <= 5 and i < len(words) - 1:
+                next_word = words[i + 1]
+                # Check if next word looks like a chapter:verse reference
+                if re.match(r'\d+:\d+', next_word):
+                    is_likely_scripture_abbr = True
+            
+            # Only split on sentence ends if we have enough content and it's not a scripture reference
+            if (not is_likely_scripture_abbr and 
+                (not scripture_ref or word not in scripture_ref.split()) and
+                remaining_words > min_remaining_words and
+                len(current_part) > max_chars * 0.5):  # Only split if we have substantial text
                 if current_part:
                     parts.append(current_part)
                     current_part = ""
@@ -196,8 +223,6 @@ def split_long_text(text, max_chars=270, min_remaining_words=10):
     
     if current_part:  # Add any remaining text
         parts.append(current_part)
-    
-    return parts
     
     return parts
 
@@ -371,15 +396,22 @@ def create_prayer_image(text, date_text="", output_filename="prayer.png", width=
 
         # Get the font path - handle both local and Vercel environments
         current_dir = os.path.dirname(os.path.abspath(__file__))
+        api_dir = os.path.join(current_dir, 'api')
         font_paths = [
             os.path.join(current_dir, 'fonts', 'ArialBold.ttf'),  # Local development path
-            os.path.join('fonts', 'ArialBold.ttf'),  # Vercel path (relative to /api)
             os.path.join(current_dir, 'api', 'fonts', 'ArialBold.ttf'),  # Alternative local path
+            os.path.join('api', 'fonts', 'ArialBold.ttf'),  # Another alternative path
+            os.path.join('fonts', 'ArialBold.ttf'),  # Vercel path (relative to /api)
             "Arial Bold",  # System font fallback
         ]
         
-        # Debug font paths
-        print(f"Trying font paths: {font_paths}")
+        # Debug font paths and existence
+        print(f"Trying font paths from {current_dir}:")
+        for path in font_paths:
+            if not isinstance(path, str) or path == "Arial Bold":
+                print(f"  {path} (system font)")
+                continue
+            print(f"  {path} - exists: {os.path.exists(path)}")
         
         font_loaded = False
         for font_path in font_paths:
